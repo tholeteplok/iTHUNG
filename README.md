@@ -1,6 +1,6 @@
-# ⚡ Mathmo - Speed Math Game
+# ⚡ iTHUNG - Speed Math Game
 
-Mathmo adalah aplikasi permainan kecepatan matematika berbasis Flutter dengan Domain-Driven Clean Architecture yang mengombinasikan gameplay cepat, desain fisik berbobot (*chunky playful*), adaptasi kesulitan dinamis (DDA), dan pengulangan berkala (*Spaced Repetition*) berbasis Leitner box.
+iTHUNG adalah aplikasi permainan kecepatan matematika berbasis Flutter dengan Domain-Driven Clean Architecture yang mengombinasikan gameplay cepat, desain fisik berbobot (*chunky playful*), adaptasi kesulitan dinamis (DDA), dan pengulangan berkala (*Spaced Repetition*) berbasis Leitner box.
 
 ---
 
