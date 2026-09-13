@@ -204,21 +204,15 @@ class _AvatarSelectionDialogState extends ConsumerState<AvatarSelectionDialog> {
                               shape: BoxShape.circle,
                               color: isSelected
                                   ? AppTheme.colorHoney.withValues(alpha: 0.25)
-                                  : AppTheme.colorVanillaCard,
+                                  : AppTheme.colorWoodPlank,
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.colorHoney
-                                    : AppTheme.darkBorder,
-                                width: isSelected ? 3.0 : 1.5,
+                                    : AppTheme.colorWoodMedium,
+                                width: isSelected ? 3.0 : AppTokens.borderWidthSubtle,
                               ),
                               boxShadow: isSelected
-                                  ? [
-                                      const BoxShadow(
-                                        color: AppTheme.darkBorder,
-                                        offset: Offset(0, 3),
-                                        blurRadius: 0,
-                                      ),
-                                    ]
+                                  ? ChunkyShadow.wood(AppTheme.colorWoodDark)
                                   : null,
                             ),
                             padding: const EdgeInsets.all(4),

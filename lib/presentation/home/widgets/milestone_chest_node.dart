@@ -44,42 +44,33 @@ class MilestoneChestNode extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final chestAsset =
+        isUnlocked ? AppAssets.icChestOpen : AppAssets.icChestClose;
+
+    final chestImage = Image.asset(
+      chestAsset,
+      width: 52,
+      height: 52,
+      fit: BoxFit.contain,
+    );
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showRewardDialog(context, ref),
       child: Transform.rotate(
         angle: AppTokens.rotationSubtleNegative,
-        child: Container(
+        child: SizedBox(
           width: 52,
           height: 52,
-          decoration: BoxDecoration(
-            color: isUnlocked ? const Color(0xFFFFD54F) : const Color(0xFFE0E0E0),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.darkBorder,
-              width: AppTokens.borderWidthDefault,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: AppTheme.darkBorder,
-                offset: Offset(0, 4),
-                blurRadius: 0,
-              ),
-            ],
-          ),
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              Icon(
-                AppIcons.chest,
-                size: 28,
-                color: isUnlocked ? const Color(0xFF795548) : const Color(0xFF9E9E9E),
-              ),
+              chestImage,
               if (isUnlocked)
                 Positioned(
-                  top: -6,
-                  right: -6,
+                  top: -4,
+                  right: -4,
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
@@ -145,23 +136,12 @@ class MilestoneRewardDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Chest Badge Icon
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: isUnlocked ? const Color(0xFFFFE082) : const Color(0xFFE0E0E0),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.darkBorder,
-                  width: AppTokens.borderWidthDefault,
-                ),
-              ),
-              child: Icon(
-                AppIcons.chest,
-                size: 38,
-                color: isUnlocked ? const Color(0xFF6D4C41) : const Color(0xFF757575),
-              ),
+            // Chest 3D Icon Polos Dinamis (Tertutup jika belum, Terbuka jika sudah dilewati)
+            Image.asset(
+              isUnlocked ? AppAssets.icChestOpen : AppAssets.icChestClose,
+              width: 80,
+              height: 80,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
             // Title

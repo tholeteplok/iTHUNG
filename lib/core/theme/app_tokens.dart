@@ -9,14 +9,14 @@ class AppTokens {
   AppTokens._();
 
   // ── Border ───────────────────────────────────────────────────────
-  static const double borderWidthDefault = 1.5;
+  static const double borderWidthDefault = 2.0;
   static const double borderWidthSubtle = 1.2; // untuk badge/pill kecil
-  static const double borderWidthWood = 2.5; // untuk kontainer/plang kayu
+  static const double borderWidthWood = 2.5; // untuk kontainer/plang kayu simetris
 
   // ── Radius ───────────────────────────────────────────────────────
   static const double radiusAvatar = 32.0; // container avatar profil (match curvature gambar)
   static const double radiusContainer = 28.0; // bingkai layar/kartu besar
-  static const double radiusCard = 26.0; // kartu soal, kartu skor
+  static const double radiusCard = 24.0; // kartu soal, kartu skor, stat card
   static const double radiusButton = 22.0; // tombol jawaban / aksi
   static const double radiusPill = 16.0; // badge streak/XP
   static const double radiusIcon = 12.0; // ikon section, tombol back kecil
@@ -34,7 +34,6 @@ class AppTokens {
   static const Duration buttonPressDuration = Duration(milliseconds: 80);
 
   // ── Aksesibilitas ────────────────────────────────────────────────
-
   /// Batas atas `MediaQuery.textScaler` khusus untuk layar gameplay (soal + grid jawaban).
   static const double maxTextScaleGameplay = 1.3;
 
@@ -46,48 +45,53 @@ class AppTokens {
 class ChunkyShadow {
   ChunkyShadow._();
 
-  /// Shadow default untuk kartu/kontainer besar (soft warm depth).
+  /// Shadow default untuk kartu/kontainer besar (soft warm depth organik).
   static List<BoxShadow> container(Color shadowColor) => [
     BoxShadow(
-      color: shadowColor.withValues(alpha: 0.12),
-      offset: const Offset(0, 6),
-      blurRadius: 10,
+      color: shadowColor.withValues(alpha: 0.15),
+      offset: const Offset(0, 4),
+      blurRadius: 8,
     ),
     BoxShadow(
       color: shadowColor.withValues(alpha: 0.06),
       offset: const Offset(0, 2),
-      blurRadius: 4,
+      blurRadius: 3,
     ),
   ];
 
   /// Shadow untuk kartu kertas putih (hanging paper sheet drop shadow).
   static List<BoxShadow> paper(Color shadowColor) => [
     BoxShadow(
-      color: shadowColor.withValues(alpha: 0.12),
-      offset: const Offset(0, 8),
-      blurRadius: 14,
+      color: shadowColor.withValues(alpha: 0.14),
+      offset: const Offset(0, 6),
+      blurRadius: 10,
     ),
     BoxShadow(
-      color: shadowColor.withValues(alpha: 0.06),
+      color: shadowColor.withValues(alpha: 0.05),
       offset: const Offset(0, 2),
-      blurRadius: 4,
+      blurRadius: 3,
     ),
   ];
 
-  /// Shadow untuk plang/kontainer kayu (3D wood bottom lip).
+  /// Shadow untuk plang/kontainer kayu (3D warm wood depth + ambient soft blur).
   static List<BoxShadow> wood(Color shadowColor) => [
     BoxShadow(
-      color: shadowColor,
-      offset: const Offset(0, 5),
-      blurRadius: 0,
+      color: shadowColor.withValues(alpha: 0.25),
+      offset: const Offset(0, 4),
+      blurRadius: 4,
+    ),
+    BoxShadow(
+      color: shadowColor.withValues(alpha: 0.10),
+      offset: const Offset(0, 1),
+      blurRadius: 2,
     ),
   ];
 
-  /// Shadow untuk tombol taktil 3D (bottom lip 4px).
+  /// Shadow untuk tombol taktil 3D (bottom lip 3.5px fisik bernuansa kayu).
   static List<BoxShadow> button(Color shadowColor) => [
     BoxShadow(
       color: shadowColor,
-      offset: const Offset(0, 4),
+      offset: const Offset(0, 3.5),
       blurRadius: 0,
     ),
   ];
@@ -141,7 +145,28 @@ class AppAssets {
   static const String woodBoardSquare = 'assets/images/wood_board_square.png';
   static const String woodSignHanging = 'assets/images/wood_sign_hanging.png';
 
-  /// Path gambar kanvas latar belakang splash screen.
+  // Background Canvases
   static const String splashCanvasBackground = 'assets/images/hill_canvas.png';
+  static const String highPassCanvasBackground = 'assets/images/highPass_canvas.png';
+
+  // Challenge 3D Icons
+  static const String icChallengeGift = 'assets/images/challenges/ic_gift.png';
+  static const String icChestClose = 'assets/images/challenges/ic_chest_close.png';
+  static const String icChestOpen = 'assets/images/challenges/ic_chest_open.png';
+  static const String icChallengeCoins = 'assets/images/challenges/ic_coins.png';
+  static const String icChallengeTrophy = 'assets/images/challenges/ic_trophy.png';
+  static const String icChallengeCrown = 'assets/images/challenges/ic_crown.png';
+  static const String icChallengeDiamond = 'assets/images/challenges/ic_diamond.png';
+  static const String icChallengePlay = 'assets/images/challenges/ic_play.png';
+  static const String icChallengePause = 'assets/images/challenges/ic_pause.png';
+  static const String icChallengeSpeed = 'assets/images/challenges/ic_speed.png';
+  static const String icChallengeSettings = 'assets/images/challenges/ic_settings.png';
+  static const String icChallengeBack = 'assets/images/challenges/ic_back.png';
+  static const String icChallengeReplay = 'assets/images/challenges/ic_replay.png';
+  static const String icChallengeHome = 'assets/images/challenges/ic_home.png';
+  static const String icChallengeHeart = 'assets/images/challenges/ic_heart.png';
+  static const String icChallengeLightning = 'assets/images/challenges/ic_lightning.png';
+  static const String icChallengeStar = 'assets/images/challenges/ic_star.png';
+  static const String icChallengeShop = 'assets/images/challenges/ic_shop.png';
 }
 

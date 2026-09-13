@@ -37,7 +37,9 @@ class AppShell extends ConsumerWidget {
     final isHome = location == '/';
     final isSecondaryTab = location == '/profile' ||
         location == '/leaderboard' ||
-        location == '/settings';
+        location == '/settings' ||
+        location == '/challenges' ||
+        location == '/daily';
 
     return PopScope(
       canPop: !isHome && !isSecondaryTab,

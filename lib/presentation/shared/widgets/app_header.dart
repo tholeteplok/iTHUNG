@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_tokens.dart';
 import 'badge_pill.dart';
-import 'chunky_button.dart';
 
 /// Header persisten untuk GameScreen, HomeScreen, dan ShellRoute.
 ///
@@ -57,19 +55,21 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (onBackTap != null) ...[
-                  ChunkyButton(
+                  IconButton(
                     onPressed: onBackTap,
-                    width: 40,
-                    height: 40,
-                    padding: EdgeInsets.zero,
-                    borderRadius: AppTokens.radiusIcon,
-                    child: const Icon(
+                    icon: const Icon(
                       Icons.arrow_back_rounded,
-                      size: 20,
-                      color: AppTheme.darkBorder,
+                      size: 24,
+                      color: AppTheme.colorEspresso,
                     ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                    splashRadius: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                 ] else if (leading != null) ...[
                   leading!,
                   const SizedBox(width: 8),

@@ -12,8 +12,9 @@ class BadgePill extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.iconColor,
-    this.backgroundColor = AppTheme.colorVanillaCard,
-    this.borderColor = AppTheme.colorCardBorder,
+    this.backgroundColor = AppTheme.colorTranslucentSurface,
+    this.borderColor = AppTheme.colorTranslucentBorder,
+    this.hasShadow = false,
     this.label,
     this.onTap,
   });
@@ -23,6 +24,7 @@ class BadgePill extends StatelessWidget {
   final Color iconColor;
   final Color backgroundColor;
   final Color borderColor;
+  final bool hasShadow;
   final String? label;
   final VoidCallback? onTap;
 
@@ -35,15 +37,17 @@ class BadgePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
         border: Border.all(
           color: borderColor,
-          width: AppTokens.borderWidthSubtle,
+          width: 1.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.colorWoodDark.withValues(alpha: 0.10),
-            offset: const Offset(0, 2),
-            blurRadius: 3,
-          ),
-        ],
+        boxShadow: hasShadow
+            ? [
+                BoxShadow(
+                  color: AppTheme.colorWoodDark.withValues(alpha: 0.10),
+                  offset: const Offset(0, 2),
+                  blurRadius: 3,
+                ),
+              ]
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

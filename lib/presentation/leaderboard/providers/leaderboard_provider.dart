@@ -176,3 +176,18 @@ final allTimeEntriesProvider =
     AsyncNotifierProvider<AllTimeEntriesNotifier, List<LeaderboardEntry>>(
   AllTimeEntriesNotifier.new,
 );
+
+/// Provider untuk mengambil posisi pemain sendiri jika di luar Top-N (khusus mode harian).
+final playerLeaderboardEntryProvider = FutureProvider.autoDispose.family<LeaderboardEntry?, String>((ref, band) async {
+  final repo = ref.watch(leaderboardRepositoryProvider);
+  final accountState = ref.watch(accountStatusProvider).valueOrNull;
+  final username = accountState?.username;
+  if (username == null || username.isEmpty) return null;
+
+  final now = DateTime.now();
+  final result = await repo.getPlayerEntry(band: band, date: now, username: username);
+  return switch (result) {
+    RepoSuccess(:final value) => value,
+    RepoFailure() => null,
+  };
+});

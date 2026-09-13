@@ -70,13 +70,13 @@ class LevelBand {
     return (level - levelStart) / total;
   }
 
-  /// Nama tampilan zona dalam Bahasa Indonesia (tersentralisasi).
+  /// Nama tampilan zona resmi bioma petualangan iTHUNG (tersentralisasi).
   String get displayName => switch (id) {
-        'onboarding' => 'Zona Perkenalan',
-        'basic' => 'Zona Dasar',
-        'intermediate' => 'Zona Menengah',
-        'advanced' => 'Zona Lanjutan',
-        'expert' => 'Zona Ahli',
+        'onboarding' => 'Fresh Sprout Meadow',
+        'basic' => 'Golden Sun Canyon',
+        'intermediate' => 'Coral Sunset Ridge',
+        'advanced' => 'Twilight Forest',
+        'expert' => 'Cosmic Mystic Peak',
         _ => id.isEmpty
             ? 'Zona'
             : '${id[0].toUpperCase()}${id.substring(1)}',

@@ -71,17 +71,18 @@ class _ChunkyButtonState extends State<ChunkyButton> {
     const shadowOffset = 4.0;
     final isPressed = _isPressed;
 
-    final isWhiteOrVanilla = widget.backgroundColor == Colors.white ||
-        widget.backgroundColor == AppTheme.colorVanillaCard;
+    final isWarmSurface = widget.backgroundColor == Colors.white ||
+        widget.backgroundColor == AppTheme.colorVanillaCard ||
+        widget.backgroundColor == AppTheme.colorWoodPlank;
 
     final effectiveBorderColor = widget.borderColor ??
-        (isWhiteOrVanilla
-            ? AppTheme.colorCardBorder
+        (isWarmSurface
+            ? AppTheme.colorWoodMedium
             : _computeDarkerLip(widget.backgroundColor));
 
     final effectiveShadowColor = widget.shadowColor ??
-        (isWhiteOrVanilla
-            ? const Color(0xFFD5C4A1)
+        (isWarmSurface
+            ? AppTheme.colorWoodDark
             : _computeDarkerLip(widget.backgroundColor));
 
     Widget button = GestureDetector(

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../game/providers/level_band_theme_provider.dart';
 import '../../home/providers/player_profile_provider.dart';
-import '../../shared/widgets/chunky_button.dart';
+import '../../shared/widgets/app_header.dart';
 import '../providers/account_status_provider.dart';
 import '../providers/profile_stats_provider.dart';
 import 'create_account_cta.dart';
@@ -44,30 +43,11 @@ class ProfileScreen extends ConsumerWidget {
         body: SafeArea(
         child: Column(
           children: [
-            // Top Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  ChunkyButton(
-                    onPressed: () => context.go('/'),
-                    backgroundColor: AppTheme.colorVanillaCard,
-                    borderColor: AppTheme.darkBorder,
-                    shadowColor: AppTheme.darkBorder,
-                    padding: const EdgeInsets.all(10),
-                    child: const Icon(
-                      AppIcons.back,
-                      size: 20,
-                      color: AppTheme.colorWoodDark,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text(
-                    'Profil Petualang',
-                    style: AppTheme.headerTitleStyle(fontSize: 21),
-                  ),
-                ],
-              ),
+            // Top Bar tersentralisasi
+            AppHeader(
+              title: 'Profil Petualang',
+              showStats: false,
+              onBackTap: () => context.go('/'),
             ),
 
             // Konten Profil

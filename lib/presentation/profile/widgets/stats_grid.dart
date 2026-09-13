@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/profile_stats_aggregate.dart';
 import '../../shared/widgets/chunky_card.dart';
 
@@ -86,6 +87,7 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChunkyCard(
       variant: ChunkyCardVariant.woodBoard,
+      borderRadius: AppTokens.radiusCard,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

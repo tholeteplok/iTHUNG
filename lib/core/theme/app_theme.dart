@@ -49,12 +49,24 @@ class AppTheme {
   /// Warna peringatan / wrong / terracotta coral.
   static const Color colorCoral = Color(0xFFE26D50);
 
-  /// Border color default (diarahkan ke [colorEspresso] demi kompatibilitas).
-  static const Color darkBorder = colorEspresso;
+  /// Border color default terpusat (menggunakan cokelat kayu hangat ramah mata).
+  static const Color darkBorder = colorWoodMedium;
+
+  /// Divider kayu halus untuk pemisah baris list tanpa kartu (cardless clean row).
+  static const Color colorWoodDivider = Color(0x2E9C663D);
 
   // ── Token semantik tersentralisasi (hasil audit UI) ───────────────
-  /// Border cream kartu vanilla (menggantikan literal 0xFFDECFA8).
-  static const Color colorCardBorder = Color(0xFFDECFA8);
+  /// Permukaan kartu semi transparan untuk HUD game (Streak, XP, Sound, Callout Pin).
+  static const Color colorTranslucentSurface = Color(0xD8FFFDF7);
+
+  /// Border kayu medium semi transparan (~30% alpha) untuk kartu semi transparan tanpa bayangan.
+  static const Color colorTranslucentBorder = Color(0x4D9C663D);
+
+  /// Border kayu medium semi transparan (~50% alpha) untuk penegasan elemen semi transparan aktif.
+  static const Color colorTranslucentBorderFocus = Color(0x809C663D);
+
+  /// Border cream kartu vanilla / border kayu terpusat.
+  static const Color colorCardBorder = colorWoodMedium;
 
   /// Hijau sukses tegas (menggantikan literal 0xFF2E7D32).
   static const Color colorSuccess = Color(0xFF2E7D32);
@@ -94,6 +106,16 @@ class AppTheme {
 
   /// Pastel Clay untuk Peningkatan Kenyamanan & Kestabilan Umum.
   static const Color colorPastelClay = Color(0xFFC8B8AB);
+
+  // ── Warna Balok Podium (Harmonis dengan Badge Lingkaran Peringkat) ──
+  /// Balok Podium 1: Emas lembut matching badge rank 1 (#FFD54F).
+  static const Color colorPodiumGold = Color(0xFFFFE28A);
+
+  /// Balok Podium 2: Perak lembut matching badge rank 2 (#E0E0E0).
+  static const Color colorPodiumSilver = Color(0xFFE6E9EC);
+
+  /// Balok Podium 3: Perunggu peach lembut matching badge rank 3 (#FFCCBC).
+  static const Color colorPodiumBronze = Color(0xFFFFD5C8);
 
   /// Menghasilkan [ThemeData] utama aplikasi.
   static ThemeData get lightTheme {

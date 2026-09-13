@@ -16,10 +16,10 @@ class AvatarFrame extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.colorVanillaCard,
+        color: AppTheme.colorWoodPlank,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: AppTheme.darkBorder, width: AppTokens.borderWidthDefault),
-        boxShadow: const [BoxShadow(color: AppTheme.darkBorder, offset: Offset(0, 4), blurRadius: 0)],
+        border: Border.all(color: AppTheme.colorWoodMedium, width: AppTokens.borderWidthWood),
+        boxShadow: ChunkyShadow.wood(AppTheme.colorWoodDark),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(innerRadius),

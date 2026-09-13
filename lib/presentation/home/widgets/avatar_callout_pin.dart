@@ -66,23 +66,16 @@ class _AvatarCalloutPinState extends State<AvatarCalloutPin>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Balon Utama
+            // Balon Utama (Kartu Semi Transparan Tanpa Bayangan)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.colorTranslucentSurface,
                 borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 border: Border.all(
-                  color: AppTheme.darkBorder,
-                  width: AppTokens.borderWidthDefault,
+                  color: AppTheme.colorTranslucentBorder,
+                  width: 1.5,
                 ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: AppTheme.darkBorder,
-                    offset: Offset(0, 3),
-                    blurRadius: 0,
-                  ),
-                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -95,7 +88,7 @@ class _AvatarCalloutPinState extends State<AvatarCalloutPin>
                       color: widget.accentColor,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppTheme.darkBorder,
+                        color: AppTheme.colorTranslucentBorderFocus,
                         width: AppTokens.borderWidthSubtle,
                       ),
                     ),
@@ -129,7 +122,7 @@ class _AvatarCalloutPinState extends State<AvatarCalloutPin>
                             Theme.of(context).textTheme.bodyMedium?.fontFamily,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.darkBorder,
+                        color: AppTheme.colorEspresso,
                       ),
                     ),
                   ),
@@ -139,10 +132,10 @@ class _AvatarCalloutPinState extends State<AvatarCalloutPin>
             // Segitiga Ekor Pin (Downward triangle)
             CustomPaint(
               size: const Size(14, 7),
-              painter: _PinTailPainter(
-                fillColor: Colors.white,
-                borderColor: AppTheme.darkBorder,
-                strokeWidth: AppTokens.borderWidthDefault,
+              painter: const _PinTailPainter(
+                fillColor: AppTheme.colorTranslucentSurface,
+                borderColor: AppTheme.colorTranslucentBorder,
+                strokeWidth: 1.5,
               ),
             ),
           ],

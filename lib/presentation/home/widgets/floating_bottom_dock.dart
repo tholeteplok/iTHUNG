@@ -35,8 +35,8 @@ class FloatingBottomDock extends StatelessWidget {
             ),
             _DockItem(
               assetPath: AppAssets.icDaily,
-              label: 'Harian',
-              onTap: () => context.go('/daily'),
+              label: 'Tantangan',
+              onTap: () => context.go('/challenges'),
             ),
             _DockItem(
               assetPath: AppAssets.icSettings,

@@ -63,6 +63,9 @@ class AppIcons {
   /// Ikon papan peringkat / piala.
   static const IconData trophy = TablerIcons.trophy;
 
+  /// Ikon mahkota juara 1.
+  static const IconData crown = TablerIcons.crown;
+
   /// Ikon pengaturan.
   static const IconData settings = TablerIcons.settings;
 

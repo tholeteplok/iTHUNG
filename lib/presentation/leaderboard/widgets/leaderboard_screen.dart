@@ -17,6 +17,8 @@ import '../../shared/widgets/chunky_card.dart';
 import '../../shared/widgets/segmented_pill.dart';
 import '../../daily_challenge/providers/daily_sync_provider.dart';
 import '../providers/leaderboard_provider.dart';
+import 'leaderboard_podium.dart';
+import 'pinned_self_rank_bar.dart';
 
 /// Layar Papan Peringkat Global / Kohor Harian (LeaderboardScreen - /leaderboard).
 class LeaderboardScreen extends ConsumerWidget {
@@ -42,6 +44,18 @@ class LeaderboardScreen extends ConsumerWidget {
     final entriesAsync = mode == LeaderboardMode.daily
         ? ref.watch(leaderboardEntriesProvider(selectedBand))
         : ref.watch(allTimeEntriesProvider);
+
+    final playerEntryAsync = mode == LeaderboardMode.daily
+        ? ref.watch(playerLeaderboardEntryProvider(selectedBand))
+        : const AsyncValue.data(null);
+
+    void navigateToPlayerProfile(LeaderboardEntry entry) {
+      if (entry.isCurrentPlayer) {
+        context.go('/profile');
+      } else {
+        context.push('/profile/${entry.username}');
+      }
+    }
 
     return PopScope(
       canPop: false,
@@ -87,26 +101,50 @@ class LeaderboardScreen extends ConsumerWidget {
                       }
                     },
                   ),
-                  data: (entries) => RefreshIndicator(
-                    color: AppTheme.colorWoodMedium,
-                    backgroundColor: AppTheme.colorVanillaCard,
-                    onRefresh: () async {
-                      if (mode == LeaderboardMode.daily) {
-                        await ref
-                            .read(dailySyncServiceProvider)
-                            .syncPendingSubmissions();
-                        ref.invalidate(leaderboardEntriesProvider(selectedBand));
-                        await ref.read(leaderboardEntriesProvider(selectedBand).future);
-                      } else {
-                        ref.invalidate(allTimeEntriesProvider);
-                        await ref.read(allTimeEntriesProvider.future);
-                      }
-                    },
-                    child: LeaderboardListView(
-                      entries: entries,
-                      mode: mode,
-                    ),
-                  ),
+                  data: (entries) {
+                    final hasCurrentPlayerInList =
+                        entries.any((e) => e.isCurrentPlayer);
+                    final outsidePlayer = !hasCurrentPlayerInList
+                        ? playerEntryAsync.valueOrNull
+                        : null;
+
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: RefreshIndicator(
+                            color: AppTheme.colorWoodMedium,
+                            backgroundColor: AppTheme.colorVanillaCard,
+                            onRefresh: () async {
+                              if (mode == LeaderboardMode.daily) {
+                                await ref
+                                    .read(dailySyncServiceProvider)
+                                    .syncPendingSubmissions();
+                                ref.invalidate(
+                                    leaderboardEntriesProvider(selectedBand));
+                                await ref.read(
+                                    leaderboardEntriesProvider(selectedBand)
+                                        .future);
+                              } else {
+                                ref.invalidate(allTimeEntriesProvider);
+                                await ref.read(allTimeEntriesProvider.future);
+                              }
+                            },
+                            child: LeaderboardListView(
+                              entries: entries,
+                              mode: mode,
+                              onPlayerTap: navigateToPlayerProfile,
+                            ),
+                          ),
+                        ),
+                        if (outsidePlayer != null)
+                          PinnedSelfRankBar(
+                            entry: outsidePlayer,
+                            mode: mode,
+                            onTap: () => navigateToPlayerProfile(outsidePlayer),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -463,16 +501,18 @@ class LeaderboardErrorView extends StatelessWidget {
   }
 }
 
-/// Tampilan daftar skor leaderboard — mendukung mode daily & all-time
+/// Tampilan daftar skor leaderboard — mendukung mode daily & all-time dengan Podium 3 Besar
 class LeaderboardListView extends StatelessWidget {
   const LeaderboardListView({
     super.key,
     required this.entries,
     required this.mode,
+    required this.onPlayerTap,
   });
 
   final List<LeaderboardEntry> entries;
   final LeaderboardMode mode;
+  final ValueChanged<LeaderboardEntry> onPlayerTap;
 
   @override
   Widget build(BuildContext context) {
@@ -523,23 +563,63 @@ class LeaderboardListView extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
+    final podiumEntries = entries.take(3).toList();
+    final remainingEntries = entries.skip(3).toList();
+
+    return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        return _LeaderboardRowItem(entry: entry, mode: mode);
-      },
+      slivers: [
+        // 1. Podium 3 Besar (Emas, Perak, Perunggu)
+        SliverToBoxAdapter(
+          child: LeaderboardPodium(
+            entries: podiumEntries,
+            mode: mode,
+            onPlayerTap: onPlayerTap,
+          ),
+        ),
+
+        // 2. Daftar Peringkat 4+ (Cardless Clean Rows)
+        if (remainingEntries.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverList.separated(
+              itemCount: remainingEntries.length,
+              separatorBuilder: (context, index) => const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppTheme.colorWoodDivider,
+                indent: 52,
+                endIndent: 4,
+              ),
+              itemBuilder: (context, index) {
+                final entry = remainingEntries[index];
+                return _LeaderboardRowItem(
+                  entry: entry,
+                  mode: mode,
+                  onTap: () => onPlayerTap(entry),
+                );
+              },
+            ),
+          )
+        else
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 24),
+          ),
+      ],
     );
   }
 }
 
 class _LeaderboardRowItem extends StatelessWidget {
-  const _LeaderboardRowItem({required this.entry, required this.mode});
+  const _LeaderboardRowItem({
+    required this.entry,
+    required this.mode,
+    required this.onTap,
+  });
 
   final LeaderboardEntry entry;
   final LeaderboardMode mode;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -563,170 +643,164 @@ class _LeaderboardRowItem extends StatelessWidget {
         ? 'Total Skor'
         : 'Waktu: ${entry.formattedTime}';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: entry.isCurrentPlayer
-            ? const Color(0xFFFFF9E6)
-            : AppTheme.colorVanillaCard,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
           color: entry.isCurrentPlayer
-              ? const Color(0xFFD48B00)
-              : AppTheme.darkBorder,
-          width: entry.isCurrentPlayer
-              ? AppTokens.borderWidthDefault
-              : AppTokens.borderWidthSubtle,
+              ? AppTheme.colorWoodPlank
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+          border: entry.isCurrentPlayer
+              ? Border.all(
+                  color: AppTheme.colorWoodMedium,
+                  width: AppTokens.borderWidthSubtle,
+                )
+              : null,
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: AppTheme.darkBorder,
-            offset: Offset(0, 2),
-            blurRadius: 0,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Rank Badge
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: rankBg,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppTheme.darkBorder,
-                width: 1.5,
+        child: Row(
+          children: [
+            // Rank Badge
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: rankBg,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.colorWoodMedium,
+                  width: AppTokens.borderWidthSubtle,
+                ),
               ),
-            ),
-            child: Center(
-              child: Text(
-                '${entry.rank}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                  color: rankColor,
+              child: Center(
+                child: Text(
+                  '${entry.rank}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    color: rankColor,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
+            const SizedBox(width: 10),
 
-          // Avatar (Preset image or initial letter)
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppTheme.colorVanillaCard,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppTheme.darkBorder,
-                width: 1.5,
+            // Avatar (Preset image or initial letter)
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppTheme.colorWoodPlank,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.colorWoodMedium,
+                  width: AppTokens.borderWidthSubtle,
+                ),
               ),
-            ),
-            child: AppAssets.avatarPath(entry.avatarId) != null
-                ? ClipOval(
-                    child: Image.asset(
-                      AppAssets.avatarPath(entry.avatarId)!,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Center(
-                    child: Text(
-                      entry.username.isNotEmpty
-                          ? entry.username[0].toUpperCase()
-                          : 'P',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                        color: AppTheme.colorEspresso,
+              child: AppAssets.avatarPath(entry.avatarId) != null
+                  ? ClipOval(
+                      child: Image.asset(
+                        AppAssets.avatarPath(entry.avatarId)!,
+                        fit: BoxFit.cover,
                       ),
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 10),
-
-          // Username & Player Indicator
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
+                    )
+                  : Center(
                       child: Text(
-                        '@${entry.username}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: entry.isCurrentPlayer
-                              ? FontWeight.w900
-                              : FontWeight.w800,
+                        entry.username.isNotEmpty
+                            ? entry.username[0].toUpperCase()
+                            : 'P',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
                           color: AppTheme.colorEspresso,
                         ),
                       ),
                     ),
-                    if (entry.isCurrentPlayer) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.colorWoodDark,
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusPill),
-                        ),
-                        child: const Text(
-                          'Kamu',
+            ),
+            const SizedBox(width: 10),
+
+            // Username & Player Indicator
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '@${entry.username}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            fontWeight: entry.isCurrentPlayer
+                                ? FontWeight.w900
+                                : FontWeight.w800,
+                            color: AppTheme.colorEspresso,
                           ),
                         ),
                       ),
+                      if (entry.isCurrentPlayer) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.colorWoodDark,
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusPill),
+                          ),
+                          child: const Text(
+                            'Kamu',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subInfo,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.colorTaupe,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    subInfo,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.colorTaupe,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Skor Utama (dinamis per mode)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: scoreColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(
-                color: scoreColor.withValues(alpha: 0.4),
-                width: 1,
+            // Skor Utama (dinamis per mode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: scoreColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                border: Border.all(
+                  color: scoreColor.withValues(alpha: 0.4),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                scoreLabel,
+                style: TextStyle(
+                  color: scoreColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
               ),
             ),
-            child: Text(
-              scoreLabel,
-              style: TextStyle(
-                color: scoreColor,
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

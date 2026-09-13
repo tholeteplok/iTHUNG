@@ -165,11 +165,13 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
       if (isAuthed && username != null && username.trim().length >= 4) {
         submitErrMsg = null; // tandai bahwa submit dicoba
         final avatarId = profile?.avatarId;
-        // Baca ulang profil agar totalScore yang dikirim adalah nilai terbaru
+        // Baca ulang profil agar totalScore, currentLevel, dan totalXp yang dikirim adalah nilai terbaru
         // (bukan snapshot awal _finishChallenge).
-        final freshTotal =
-            ref.read(playerProfileProvider).valueOrNull?.totalScore ??
-                profile?.totalScore;
+        final freshProfile =
+            ref.read(playerProfileProvider).valueOrNull ?? profile;
+        final freshTotal = freshProfile?.totalScore;
+        final freshLevel = freshProfile?.currentLevel;
+        final freshXp = freshProfile?.totalXp;
 
         // Injeksi update optimistik seketika (Zero Delay)
         final optimisticEntry = LeaderboardEntry(
@@ -201,6 +203,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
               username: username,
               avatarId: avatarId,
               totalScore: freshTotal,
+              currentLevel: freshLevel,
+              totalXp: freshXp,
             );
         if (submitResult case RepoFailure(:final reason)) {
           submitErrMsg = reason;
@@ -258,12 +262,20 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (_isFinished) {
-          context.go('/');
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/challenges');
+          }
           return;
         }
         final shouldExit = await showExitConfirmDialog(context);
         if (shouldExit && context.mounted) {
-          context.go('/');
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/challenges');
+          }
         }
       },
       child: Scaffold(
@@ -300,7 +312,11 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
                               context,
                             );
                             if (shouldExit && context.mounted) {
-                              context.go('/');
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go('/challenges');
+                              }
                             }
                           },
                         ),
@@ -501,11 +517,17 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
             ),
             const SizedBox(height: 24),
             ChunkyButton(
-              onPressed: () => context.go('/'),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/challenges');
+                }
+              },
               backgroundColor: accentColor,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               child: const Text(
-                'Kembali ke Beranda',
+                'Kembali ke Tantangan',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -584,7 +606,11 @@ class _DailyChallengeLockedViewState
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
-          context.go('/');
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/challenges');
+          }
         }
       },
       child: Scaffold(
@@ -598,7 +624,13 @@ class _DailyChallengeLockedViewState
               AppHeader(
                 title: 'Tantangan Harian',
                 showStats: false,
-                onBackTap: () => context.go('/'),
+                onBackTap: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/challenges');
+                  }
+                },
               ),
               const Spacer(),
 

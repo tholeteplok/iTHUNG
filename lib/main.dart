@@ -7,11 +7,13 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 
 import 'core/theme/app_theme.dart';
 import 'domain/models/session_result.dart';
+import 'presentation/challenges/screens/challenge_screen.dart';
 import 'presentation/daily_challenge/widgets/daily_challenge_screen.dart';
 import 'presentation/game/widgets/game_screen.dart';
 import 'presentation/home/widgets/home_screen.dart';
 import 'presentation/leaderboard/widgets/leaderboard_screen.dart';
 import 'presentation/profile/widgets/profile_screen.dart';
+import 'presentation/profile/widgets/public_profile_screen.dart';
 import 'presentation/results/widgets/results_screen.dart';
 import 'presentation/settings/widgets/settings_screen.dart';
 import 'presentation/shared/widgets/app_shell.dart';
@@ -73,6 +75,10 @@ final GoRouter _router = GoRouter(
           },
         ),
         GoRoute(
+          path: '/challenges',
+          builder: (context, state) => const ChallengeScreen(),
+        ),
+        GoRoute(
           path: '/daily',
           builder: (context, state) => const DailyChallengeGate(),
         ),
@@ -91,6 +97,10 @@ final GoRouter _router = GoRouter(
       ],
     ),
     GoRoute(
+      path: '/daily/play',
+      builder: (context, state) => const DailyChallengeScreen(),
+    ),
+    GoRoute(
       path: '/results',
       redirect: (context, state) {
         if (state.extra is! SessionResult) return '/';
@@ -98,6 +108,12 @@ final GoRouter _router = GoRouter(
       },
       builder: (context, state) =>
           ResultsScreen(result: state.extra as SessionResult),
+    ),
+    GoRoute(
+      path: '/profile/:username',
+      builder: (context, state) => PublicProfileScreen(
+        username: state.pathParameters['username'] ?? '',
+      ),
     ),
   ],
 );

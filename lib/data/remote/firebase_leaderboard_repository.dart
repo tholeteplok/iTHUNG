@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/errors/firebase_error_mapper.dart';
 import '../../domain/models/daily_challenge.dart';
 import '../../domain/models/leaderboard_entry.dart';
+import '../../domain/models/public_profile.dart';
 import '../../domain/repositories/leaderboard_repository.dart';
 import '../../domain/repositories/repo_result.dart';
 
@@ -257,6 +258,8 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     required String username,
     String? avatarId,
     int? totalScore,
+    int? currentLevel,
+    int? totalXp,
   }) async {
     try {
       final dateKey = _formatDateKey(result.date);
@@ -277,17 +280,19 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         'submitted_at': FieldValue.serverTimestamp(),
       }).timeout(const Duration(seconds: 10));
 
-      // 2. Best-effort sinkronisasi total_score ke /profiles/{currentUid}
+      // 2. Best-effort sinkronisasi profil ke /profiles/{currentUid}
       //    Daily TIDAK menambah skor — ini hanya menyelaraskan agar all-time
-      //    tidak tertinggal. Terisolasi agar kegagalan sinkronisasi profil tidak membatalkan
+      //    dan level tidak tertinggal. Terisolasi agar kegagalan sinkronisasi profil tidak membatalkan
       //    pencatatan daily challenge yang sudah berhasil.
-      if (totalScore != null) {
+      if (totalScore != null || currentLevel != null || totalXp != null) {
         try {
           await _mergeProfileTotalMax(
             uid: currentUid,
             username: username,
             avatarId: avatarId,
-            totalScore: totalScore,
+            totalScore: totalScore ?? 0,
+            currentLevel: currentLevel,
+            totalXp: totalXp,
           );
         } catch (_) {
           // Abaikan kegagalan sinkronisasi profil sekunder agar daily result tetap valid
@@ -463,5 +468,37 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
 
       tx.set(ref, profilePayload, SetOptions(merge: true));
     }).timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<RepoResult<PublicProfile?>> fetchPublicProfile(String username) async {
+    try {
+      final clean = username.trim();
+      if (clean.isEmpty) {
+        return const RepoSuccess(null);
+      }
+
+      final snapshot = await firestore
+          .collection(profilesCollection)
+          .where('username', isEqualTo: clean)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      if (snapshot.docs.isEmpty) {
+        return const RepoSuccess(null);
+      }
+
+      final data = snapshot.docs.first.data();
+      return RepoSuccess(PublicProfile.fromJson(data));
+    } catch (e) {
+      return RepoFailure(
+        FirebaseErrorMapper.map(
+          e,
+          defaultMessage: 'Gagal memuat profil publik pemain',
+        ),
+        e,
+      );
+    }
   }
 }

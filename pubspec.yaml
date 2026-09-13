@@ -52,6 +52,7 @@ flutter:
     - assets/level_bands.json
     - assets/images/
     - assets/images/avatar/
+    - assets/images/challenges/
     - assets/sounds/musics/
     - assets/sounds/sfx/
     - assets/icon/

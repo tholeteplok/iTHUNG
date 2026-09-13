@@ -52,6 +52,8 @@ class DailySyncService {
             username: username,
             avatarId: profile?.avatarId,
             totalScore: profile?.totalScore,
+            currentLevel: profile?.currentLevel,
+            totalXp: profile?.totalXp,
           );
           if (submitRes is RepoSuccess) {
             final key = item.id ?? '${item.formattedDate}_${item.band}';
@@ -73,6 +75,8 @@ class DailySyncService {
           username: username,
           avatarId: profile?.avatarId,
           totalScore: profile?.totalScore,
+          currentLevel: profile?.currentLevel,
+          totalXp: profile?.totalXp,
         );
         if (submitRes is RepoSuccess) {
           final dateKey =

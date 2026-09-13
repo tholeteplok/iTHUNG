@@ -1,5 +1,6 @@
 import '../models/daily_challenge.dart';
 import '../models/leaderboard_entry.dart';
+import '../models/public_profile.dart';
 import 'repo_result.dart';
 
 /// Kontrak repositori untuk papan peringkat (Leaderboard).
@@ -36,6 +37,8 @@ abstract class LeaderboardRepository {
     required String username,
     String? avatarId,
     int? totalScore,
+    int? currentLevel,
+    int? totalXp,
   });
 
   /// Mendorong total skor lokal terbaru ke /profiles agar all-time sinkron.
@@ -60,4 +63,8 @@ abstract class LeaderboardRepository {
   /// Mengambil data dokumen profil pemain dari /profiles/{uid} di Firestore.
   /// Mengembalikan null jika profil belum pernah tersimpan di cloud.
   Future<RepoResult<Map<String, dynamic>?>> fetchCloudProfile(String uid);
+
+  /// Mengambil data profil publik pemain berdasarkan [username] dari /profiles di Firestore.
+  /// Mengembalikan null jika profil tidak ditemukan.
+  Future<RepoResult<PublicProfile?>> fetchPublicProfile(String username);
 }

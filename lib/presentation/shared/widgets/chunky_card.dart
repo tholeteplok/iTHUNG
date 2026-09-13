@@ -59,38 +59,38 @@ class ChunkyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectivePadding = padding ?? const EdgeInsets.all(20);
 
-    // Resolusi warna dan properti sesuai varian (Clean Cozy Neobrutalism Vektor murni)
+    // Resolusi warna dan properti sesuai varian (Cozy Warm Stationery & Woodwork)
     final effectiveBg = backgroundColor ??
         switch (variant) {
           ChunkyCardVariant.hangingPaper => AppTheme.colorPaperWhite,
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
-            AppTheme.colorVanillaCard,
-          ChunkyCardVariant.vanilla => AppTheme.colorVanillaCard,
+            AppTheme.colorWoodPlank,
+          ChunkyCardVariant.vanilla => AppTheme.colorWoodPlank,
         };
 
     final effectiveBorderColor = borderColor ??
         switch (variant) {
           ChunkyCardVariant.hangingPaper => const Color(0xFFEADBCE),
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
-            AppTheme.darkBorder,
-          ChunkyCardVariant.vanilla => const Color(0xFFE2D3B3),
+            AppTheme.colorWoodMedium,
+          ChunkyCardVariant.vanilla => AppTheme.colorWoodMedium,
         };
 
-    final effectiveBorderRadius = borderRadius ?? AppTokens.radiusCard;
+    final effectiveBorderRadius = borderRadius ?? AppTokens.radiusContainer;
 
-    final effectiveBorderWidth = borderWidth ?? AppTokens.borderWidthDefault;
+    final effectiveBorderWidth = borderWidth ??
+        switch (variant) {
+          ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
+            AppTokens.borderWidthWood,
+          _ => AppTokens.borderWidthDefault,
+        };
 
     final effectiveShadow = boxShadow ??
         switch (variant) {
           ChunkyCardVariant.hangingPaper =>
             ChunkyShadow.paper(AppTheme.colorWoodDark),
-          ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard => [
-            const BoxShadow(
-              color: AppTheme.darkBorder,
-              offset: Offset(0, 4),
-              blurRadius: 0,
-            ),
-          ],
+          ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
+            ChunkyShadow.wood(AppTheme.colorWoodDark),
           ChunkyCardVariant.vanilla =>
             ChunkyShadow.container(AppTheme.colorWoodDark),
         };
