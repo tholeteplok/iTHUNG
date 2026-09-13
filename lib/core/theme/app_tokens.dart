@@ -151,6 +151,8 @@ class AppAssets {
 
   // Challenge 3D Icons
   static const String icChallengeGift = 'assets/images/challenges/ic_gift.png';
+  static const String icChestClose = 'assets/images/challenges/ic_chest_close.png';
+  static const String icChestOpen = 'assets/images/challenges/ic_chest_open.png';
   static const String icChallengeCoins = 'assets/images/challenges/ic_coins.png';
   static const String icChallengeTrophy = 'assets/images/challenges/ic_trophy.png';
   static const String icChallengeCrown = 'assets/images/challenges/ic_crown.png';

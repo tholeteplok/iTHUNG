@@ -44,25 +44,15 @@ class MilestoneChestNode extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Widget giftImage = Image.asset(
-      AppAssets.icChallengeGift,
-      width: 48,
-      height: 48,
+    final chestAsset =
+        isUnlocked ? AppAssets.icChestOpen : AppAssets.icChestClose;
+
+    final chestImage = Image.asset(
+      chestAsset,
+      width: 52,
+      height: 52,
       fit: BoxFit.contain,
     );
-
-    if (!isUnlocked) {
-      // Tampilan terkunci: desaturasi grayscale halus & opacity
-      giftImage = ColorFiltered(
-        colorFilter: const ColorFilter.matrix(<double>[
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0,      0,      0,      0.65, 0,
-        ]),
-        child: giftImage,
-      );
-    }
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -76,7 +66,7 @@ class MilestoneChestNode extends ConsumerWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              giftImage,
+              chestImage,
               if (isUnlocked)
                 Positioned(
                   top: -4,
@@ -146,11 +136,11 @@ class MilestoneRewardDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Chest / Gift 3D Icon Polos
+            // Chest 3D Icon Polos Dinamis (Tertutup jika belum, Terbuka jika sudah dilewati)
             Image.asset(
-              AppAssets.icChallengeGift,
-              width: 72,
-              height: 72,
+              isUnlocked ? AppAssets.icChestOpen : AppAssets.icChestClose,
+              width: 80,
+              height: 80,
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
