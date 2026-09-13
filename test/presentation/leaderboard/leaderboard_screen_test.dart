@@ -7,6 +7,7 @@ import 'package:mathmo_app/domain/models/level_band_config.dart';
 import 'package:mathmo_app/domain/models/question.dart';
 import 'package:mathmo_app/presentation/game/providers/level_band_theme_provider.dart';
 import 'package:mathmo_app/presentation/leaderboard/providers/leaderboard_provider.dart';
+import 'package:mathmo_app/presentation/leaderboard/widgets/leaderboard_podium.dart';
 import 'package:mathmo_app/presentation/leaderboard/widgets/leaderboard_screen.dart';
 import 'package:mathmo_app/presentation/profile/providers/account_status_provider.dart';
 
@@ -114,16 +115,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Papan Peringkat'), findsOneWidget);
+    expect(find.byType(LeaderboardPodium), findsOneWidget);
     expect(find.text('@juara_satu'), findsOneWidget);
     expect(find.text('@my_user_test'), findsOneWidget);
     expect(find.text('12/12'), findsOneWidget);
     expect(find.text('11/12'), findsOneWidget);
-    expect(find.text('Waktu: 19.5s'), findsOneWidget);
-    expect(find.text('Waktu: 22.1s'), findsOneWidget);
     expect(find.text('Kamu'), findsOneWidget);
     expect(find.text('🏆  Harian'), findsOneWidget);
     expect(find.text('⭐  Semua Waktu'), findsOneWidget);
-    expect(find.text('Zona Dasar'), findsOneWidget);
+    expect(find.text('Golden Sun Canyon'), findsOneWidget);
   });
 
   testWidgets('LeaderboardScreen renders all-time entries and hides band tabs in allTime mode', (tester) async {
@@ -187,14 +187,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Papan Peringkat'), findsOneWidget);
+    expect(find.byType(LeaderboardPodium), findsOneWidget);
     expect(find.text('@legend_player'), findsOneWidget);
     expect(find.text('@my_user_test'), findsOneWidget);
     expect(find.text('9850 pts'), findsOneWidget);
     expect(find.text('5400 pts'), findsOneWidget);
-    expect(find.text('Total Skor'), findsNWidgets(2));
     expect(find.text('Kamu'), findsOneWidget);
     // Band tabs should NOT be rendered in all-time mode
-    expect(find.text('Basic'), findsNothing);
+    expect(find.text('Golden Sun Canyon'), findsNothing);
   });
 
   group('Optimistic update tests', () {

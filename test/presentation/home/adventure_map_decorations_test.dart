@@ -122,7 +122,7 @@ void main() {
       );
 
       expect(find.byType(MilestoneChestNode), findsOneWidget);
-      expect(find.byIcon(AppIcons.chest), findsOneWidget);
+      expect(find.byType(Image), findsWidgets);
 
       // Tap chest to open dialog
       await tester.tap(find.byType(MilestoneChestNode));

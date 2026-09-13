@@ -21,8 +21,8 @@ void main() {
           builder: (context, state) => const Scaffold(body: Text('Leaderboard Screen')),
         ),
         GoRoute(
-          path: '/daily',
-          builder: (context, state) => const Scaffold(body: Text('Daily Screen')),
+          path: '/challenges',
+          builder: (context, state) => const Scaffold(body: Text('Challenges Screen')),
         ),
         GoRoute(
           path: '/settings',
@@ -39,7 +39,7 @@ void main() {
 
     expect(find.byTooltip('Profil'), findsOneWidget);
     expect(find.byTooltip('Peringkat'), findsOneWidget);
-    expect(find.byTooltip('Harian'), findsOneWidget);
+    expect(find.byTooltip('Tantangan'), findsOneWidget);
     expect(find.byTooltip('Pengaturan'), findsOneWidget);
 
     // Tap Profile

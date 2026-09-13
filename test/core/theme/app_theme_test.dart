@@ -9,7 +9,7 @@ void main() {
       expect(style.fontFamily, equals('JetBrainsMono'));
       expect(style.fontWeight, equals(FontWeight.w800));
       expect(style.fontSize, equals(38));
-      expect(style.color, equals(AppTheme.darkBorder));
+      expect(style.color, equals(AppTheme.colorEspresso));
     });
 
     test('statNumberStyle uses local JetBrainsMono font family', () {
