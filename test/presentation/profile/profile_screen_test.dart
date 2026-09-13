@@ -102,7 +102,7 @@ void main() {
     expect(find.text('Profil Petualang'), findsOneWidget);
     expect(find.text('Petualang iTHUNG'), findsOneWidget);
     expect(find.text('Akun Tamu · Main Lokal'), findsOneWidget);
-    expect(find.text('Zona Perkenalan'), findsOneWidget);
+    expect(find.text('Fresh Sprout Meadow'), findsOneWidget);
     expect(find.text('14'), findsOneWidget); // facts mastered
     expect(find.text('4 Hari'), findsOneWidget); // longest streak
     expect(find.text('Masuk dengan Google'), findsOneWidget);
@@ -188,7 +188,7 @@ void main() {
 
     expect(find.text('@bintang_matematika'), findsOneWidget);
     expect(find.text('Terhubung dengan Google'), findsOneWidget);
-    expect(find.text('Zona Dasar'), findsOneWidget);
+    expect(find.text('Golden Sun Canyon'), findsOneWidget);
     expect(find.text('45'), findsOneWidget);
     expect(find.text('12 Hari'), findsOneWidget);
     expect(find.text('Keluar Akun'), findsOneWidget);

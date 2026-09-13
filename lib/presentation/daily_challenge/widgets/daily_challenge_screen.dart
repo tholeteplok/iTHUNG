@@ -165,11 +165,13 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
       if (isAuthed && username != null && username.trim().length >= 4) {
         submitErrMsg = null; // tandai bahwa submit dicoba
         final avatarId = profile?.avatarId;
-        // Baca ulang profil agar totalScore yang dikirim adalah nilai terbaru
+        // Baca ulang profil agar totalScore, currentLevel, dan totalXp yang dikirim adalah nilai terbaru
         // (bukan snapshot awal _finishChallenge).
-        final freshTotal =
-            ref.read(playerProfileProvider).valueOrNull?.totalScore ??
-                profile?.totalScore;
+        final freshProfile =
+            ref.read(playerProfileProvider).valueOrNull ?? profile;
+        final freshTotal = freshProfile?.totalScore;
+        final freshLevel = freshProfile?.currentLevel;
+        final freshXp = freshProfile?.totalXp;
 
         // Injeksi update optimistik seketika (Zero Delay)
         final optimisticEntry = LeaderboardEntry(
@@ -201,6 +203,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
               username: username,
               avatarId: avatarId,
               totalScore: freshTotal,
+              currentLevel: freshLevel,
+              totalXp: freshXp,
             );
         if (submitResult case RepoFailure(:final reason)) {
           submitErrMsg = reason;

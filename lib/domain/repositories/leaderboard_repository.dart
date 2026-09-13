@@ -37,6 +37,8 @@ abstract class LeaderboardRepository {
     required String username,
     String? avatarId,
     int? totalScore,
+    int? currentLevel,
+    int? totalXp,
   });
 
   /// Mendorong total skor lokal terbaru ke /profiles agar all-time sinkron.

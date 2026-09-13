@@ -196,6 +196,80 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
           }
         }
         ref.invalidate(profileStatsProvider);
+
+        // 3. Rekonsiliasi Dua Arah (Self-Healing Push):
+        // Jika data kemajuan lokal (level, skor, atau XP) ternyata lebih tinggi daripada di cloud,
+        // dorong pembaruan ke Firestore secara asynchronous di background agar profil cloud
+        // langsung terpulihkan (misal kasus pemain yang bermain offline).
+        final localLevelIsHigher = baseProfile.currentLevel > cloudLevel;
+        final localScoreIsHigher = baseProfile.totalScore > cloudScore;
+        final localXpIsHigher = baseProfile.totalXp > cloudXp;
+
+        final usernameToPush = restoredProfile.username ?? effectiveUsername;
+        if ((localLevelIsHigher || localScoreIsHigher || localXpIsHigher) &&
+            usernameToPush != null &&
+            usernameToPush.trim().length >= 4) {
+          unawaited(() async {
+            try {
+              final scoreRepo = ref.read(levelScoreRepositoryProvider);
+              final allRecordsRes = await scoreRepo.getAllRecords();
+              final Map<String, dynamic> localRecordsPayload = {};
+              if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
+                for (final entry in allRecordsRes.value.entries) {
+                  localRecordsPayload[entry.key.toString()] = entry.value.toJson();
+                }
+              }
+
+              await leaderboardRepo.syncProfileProgress(
+                username: usernameToPush,
+                avatarId: restoredProfile.avatarId,
+                totalScore: restoredProfile.totalScore,
+                currentLevel: restoredProfile.currentLevel,
+                totalXp: restoredProfile.totalXp,
+                levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+              );
+            } catch (err) {
+              debugPrint('[_restoreFromCloud] Gagal self-healing push ke cloud: $err');
+            }
+          }());
+        }
+      } else if (cloudRes is RepoSuccess<Map<String, dynamic>?> && cloudRes.value == null) {
+        // Dokumen cloud belum ada. Inisialisasi profil ke Firestore jika data lokal tersedia.
+        final repo = ref.read(playerRepositoryProvider);
+        PlayerProfile baseProfile = localProfile ?? PlayerProfile.initial(playerId: uid);
+        if (localProfile == null) {
+          final res = await repo.getProfile();
+          if (res is RepoSuccess<PlayerProfile>) {
+            baseProfile = res.value;
+          }
+        }
+        if (effectiveUsername != null && effectiveUsername.trim().length >= 4) {
+          final profileToSync = baseProfile;
+          final usernameToSync = effectiveUsername;
+          unawaited(() async {
+            try {
+              final scoreRepo = ref.read(levelScoreRepositoryProvider);
+              final allRecordsRes = await scoreRepo.getAllRecords();
+              final Map<String, dynamic> localRecordsPayload = {};
+              if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
+                for (final entry in allRecordsRes.value.entries) {
+                  localRecordsPayload[entry.key.toString()] = entry.value.toJson();
+                }
+              }
+
+              await leaderboardRepo.syncProfileProgress(
+                username: usernameToSync,
+                avatarId: profileToSync.avatarId,
+                totalScore: profileToSync.totalScore,
+                currentLevel: profileToSync.currentLevel,
+                totalXp: profileToSync.totalXp,
+                levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+              );
+            } catch (err) {
+              debugPrint('[_restoreFromCloud] Gagal inisialisasi push profil ke cloud: $err');
+            }
+          }());
+        }
       }
     } catch (e, stack) {
       debugPrint('[_restoreFromCloud] Gagal memulihkan profil dari cloud: $e\n$stack');

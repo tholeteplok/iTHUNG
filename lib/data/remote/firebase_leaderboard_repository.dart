@@ -258,6 +258,8 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     required String username,
     String? avatarId,
     int? totalScore,
+    int? currentLevel,
+    int? totalXp,
   }) async {
     try {
       final dateKey = _formatDateKey(result.date);
@@ -278,17 +280,19 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         'submitted_at': FieldValue.serverTimestamp(),
       }).timeout(const Duration(seconds: 10));
 
-      // 2. Best-effort sinkronisasi total_score ke /profiles/{currentUid}
+      // 2. Best-effort sinkronisasi profil ke /profiles/{currentUid}
       //    Daily TIDAK menambah skor — ini hanya menyelaraskan agar all-time
-      //    tidak tertinggal. Terisolasi agar kegagalan sinkronisasi profil tidak membatalkan
+      //    dan level tidak tertinggal. Terisolasi agar kegagalan sinkronisasi profil tidak membatalkan
       //    pencatatan daily challenge yang sudah berhasil.
-      if (totalScore != null) {
+      if (totalScore != null || currentLevel != null || totalXp != null) {
         try {
           await _mergeProfileTotalMax(
             uid: currentUid,
             username: username,
             avatarId: avatarId,
-            totalScore: totalScore,
+            totalScore: totalScore ?? 0,
+            currentLevel: currentLevel,
+            totalXp: totalXp,
           );
         } catch (_) {
           // Abaikan kegagalan sinkronisasi profil sekunder agar daily result tetap valid
