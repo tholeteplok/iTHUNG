@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../game/providers/level_band_theme_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../data/services/update_service.dart';
+import '../../shared/widgets/adventure_ribbon_banner.dart';
 import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/update_dialog.dart';
 import '../providers/level_stars_provider.dart';
@@ -391,132 +392,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
 
-                    // Stage Navigator Bar (Kartu Neobrutalism Vektor)
+                    // Stage Navigator Bar (Pita Spanduk Petualang - Adventure Ribbon)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 4,
                       ),
-                      child: Center(
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.colorVanillaCard,
-                            borderRadius:
-                                BorderRadius.circular(AppTokens.radiusCard),
-                            border: Border.all(
-                              color: AppTheme.darkBorder,
-                              width: AppTokens.borderWidthDefault,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: AppTheme.darkBorder,
-                                offset: Offset(0, 3),
-                                blurRadius: 0,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              // Tombol Previous Stage
-                              IconButton(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(
-                                  Icons.chevron_left_rounded,
-                                  size: 26,
-                                ),
-                                color: _currentStageIndex > 0
-                                    ? AppTheme.colorEspresso
-                                    : AppTheme.colorTaupe
-                                        .withValues(alpha: 0.35),
-                                onPressed: _currentStageIndex > 0
-                                    ? () {
-                                        _pageController.previousPage(
-                                          duration: const Duration(
-                                            milliseconds: 300,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                        );
-                                      }
-                                    : null,
-                              ),
-                              const SizedBox(width: 4),
-                              // Teks Judul Stage
-                              Expanded(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          activeStage.icon,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            activeStage.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w900,
-                                              color: AppTheme.colorEspresso,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      activeStage.subtitle,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppTheme.colorTaupe,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              // Tombol Next Stage
-                              IconButton(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 26,
-                                ),
-                                color: _currentStageIndex <
-                                        kIthungStages.length - 1
-                                    ? AppTheme.colorEspresso
-                                    : AppTheme.colorTaupe
-                                        .withValues(alpha: 0.35),
-                                onPressed: _currentStageIndex <
-                                        kIthungStages.length - 1
-                                    ? () {
-                                        _pageController.nextPage(
-                                          duration: const Duration(
-                                            milliseconds: 300,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                        );
-                                      }
-                                    : null,
-                              ),
-                            ],
-                          ),
-                        ),
+                      child: AdventureRibbonBanner(
+                        title: activeStage.title,
+                        subtitle: activeStage.subtitle,
+                        icon: activeStage.icon,
                       ),
                     ),
                   ],
@@ -715,24 +600,19 @@ class _MuteToggleButton extends ConsumerWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AppTheme.colorVanillaCard,
+              color: AppTheme.colorTranslucentSurface,
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFFDECFA8),
-                width: AppTokens.borderWidthDefault,
+                color: AppTheme.colorTranslucentBorder,
+                width: 1.5,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.colorWoodDark.withValues(alpha: 0.12),
-                  offset: const Offset(0, 2),
-                  blurRadius: 3,
-                ),
-              ],
             ),
             child: Icon(
               isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
               size: 20,
-              color: isMuted ? Colors.grey.shade500 : AppTheme.colorEspresso,
+              color: isMuted
+                  ? AppTheme.colorTaupe.withValues(alpha: 0.6)
+                  : AppTheme.colorEspresso,
             ),
           ),
         ),

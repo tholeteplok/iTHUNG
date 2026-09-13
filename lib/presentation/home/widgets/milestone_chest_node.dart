@@ -44,36 +44,43 @@ class MilestoneChestNode extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    Widget giftImage = Image.asset(
+      AppAssets.icChallengeGift,
+      width: 48,
+      height: 48,
+      fit: BoxFit.contain,
+    );
+
+    if (!isUnlocked) {
+      // Tampilan terkunci: desaturasi grayscale halus & opacity
+      giftImage = ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0,      0,      0,      0.65, 0,
+        ]),
+        child: giftImage,
+      );
+    }
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showRewardDialog(context, ref),
       child: Transform.rotate(
         angle: AppTokens.rotationSubtleNegative,
-        child: Container(
+        child: SizedBox(
           width: 52,
           height: 52,
-          decoration: BoxDecoration(
-            color: isUnlocked ? const Color(0xFFFFD54F) : const Color(0xFFE0E0E0),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.darkBorder,
-              width: AppTokens.borderWidthDefault,
-            ),
-            boxShadow: ChunkyShadow.wood(AppTheme.colorWoodDark),
-          ),
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              Icon(
-                AppIcons.chest,
-                size: 28,
-                color: isUnlocked ? const Color(0xFF795548) : const Color(0xFF9E9E9E),
-              ),
+              giftImage,
               if (isUnlocked)
                 Positioned(
-                  top: -6,
-                  right: -6,
+                  top: -4,
+                  right: -4,
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
@@ -139,23 +146,12 @@ class MilestoneRewardDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Chest Badge Icon
-            Container(
+            // Chest / Gift 3D Icon Polos
+            Image.asset(
+              AppAssets.icChallengeGift,
               width: 72,
               height: 72,
-              decoration: BoxDecoration(
-                color: isUnlocked ? const Color(0xFFFFE082) : const Color(0xFFE0E0E0),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.darkBorder,
-                  width: AppTokens.borderWidthDefault,
-                ),
-              ),
-              child: Icon(
-                AppIcons.chest,
-                size: 38,
-                color: isUnlocked ? const Color(0xFF6D4C41) : const Color(0xFF757575),
-              ),
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
             // Title

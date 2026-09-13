@@ -56,6 +56,15 @@ class AppTheme {
   static const Color colorWoodDivider = Color(0x2E9C663D);
 
   // ── Token semantik tersentralisasi (hasil audit UI) ───────────────
+  /// Permukaan kartu semi transparan untuk HUD game (Streak, XP, Sound, Callout Pin).
+  static const Color colorTranslucentSurface = Color(0xD8FFFDF7);
+
+  /// Border kayu medium semi transparan (~30% alpha) untuk kartu semi transparan tanpa bayangan.
+  static const Color colorTranslucentBorder = Color(0x4D9C663D);
+
+  /// Border kayu medium semi transparan (~50% alpha) untuk penegasan elemen semi transparan aktif.
+  static const Color colorTranslucentBorderFocus = Color(0x809C663D);
+
   /// Border cream kartu vanilla / border kayu terpusat.
   static const Color colorCardBorder = colorWoodMedium;
 
