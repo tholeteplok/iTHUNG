@@ -95,13 +95,38 @@ void main() {
           final a = q.operands[0];
           final b = q.operands[1];
           final c = q.operands[2];
-          final inner = q.factKey.contains('($a+$b)') ? a + b : (a - b).abs();
+          final isAdd = q.factKey.contains('($a+$b)');
+          if (!isAdd) {
+            // Pengurangan dalam kurung harus selalu positif (a > b)
+            expect(a, greaterThan(b),
+                reason: 'Operand pertama harus lebih besar dari operand kedua pada pengurangan multistep');
+          }
+          final inner = isAdd ? a + b : a - b;
           expect(q.correctAnswer, equals(inner * c));
           expect(q.correctAnswer, greaterThan(0));
           expect(q.displayExpression, contains('× $c'));
         }
       }
       expect(found, greaterThan(0));
+    });
+
+    test('never generates negative inner expression in mixedMultistep across 500 samples', () {
+      for (var i = 0; i < 500; i++) {
+        final q = generator.generateForLevel(60);
+        if (q.operation == Operation.mixedMultistep) {
+          final a = q.operands[0];
+          final b = q.operands[1];
+          final c = q.operands[2];
+          final isSubtract = q.factKey.contains('-');
+          if (isSubtract) {
+            expect(a, greaterThan(b),
+                reason: 'Ditemukan ekspresi minus dalam kurung: ($a - $b)');
+            expect(a - b, greaterThan(0));
+            expect(q.correctAnswer, equals((a - b) * c));
+          }
+          expect(q.correctAnswer, greaterThan(0));
+        }
+      }
     });
   });
 }
