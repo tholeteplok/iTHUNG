@@ -15,7 +15,6 @@ import '../../../domain/services/scoring_service.dart';
 import '../../game/providers/game_dependencies_provider.dart';
 import '../../game/providers/level_band_theme_provider.dart';
 import '../../game/widgets/answer_grid.dart';
-import '../../game/widgets/countdown_progress_bar.dart';
 import '../../game/widgets/feedback_overlay.dart';
 import '../../game/widgets/question_display.dart';
 import '../../home/providers/player_profile_provider.dart';
@@ -27,6 +26,11 @@ import '../../shared/widgets/chunky_card.dart';
 import '../../shared/widgets/exit_confirm_dialog.dart';
 
 /// Layar Gameplay Mode Speed Blitz.
+///
+/// Mekanisme:
+/// - Waktu tunggal 60 detik (Single Master Clock).
+/// - Tidak ada batasan waktu / timeout per soal.
+/// - Soal terus berlanjut tanpa henti selama waktu 60 detik masih tersisa.
 class SpeedBlitzScreen extends ConsumerStatefulWidget {
   const SpeedBlitzScreen({super.key});
 
@@ -34,14 +38,12 @@ class SpeedBlitzScreen extends ConsumerStatefulWidget {
   ConsumerState<SpeedBlitzScreen> createState() => _SpeedBlitzScreenState();
 }
 
-class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
+class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
+    with SingleTickerProviderStateMixin {
   static const int _kTotalDurationSeconds = 60;
-  static const int _kQuestionTimeoutSeconds = 5;
 
-  int _secondsRemaining = _kTotalDurationSeconds;
-  Timer? _masterTimer;
+  late final AnimationController _clockController;
 
-  int _questionIndex = 0;
   final List<bool> _answerResults = [];
 
   Question? _currentQuestion;
@@ -60,35 +62,33 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
   @override
   void initState() {
     super.initState();
-    _startMasterTimer();
+    _clockController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: _kTotalDurationSeconds),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _finishChallenge();
+        }
+      });
+
+    _clockController.forward();
     _generateNextQuestion();
   }
 
   @override
   void dispose() {
-    _masterTimer?.cancel();
+    _clockController.dispose();
     super.dispose();
   }
 
-  void _startMasterTimer() {
-    _masterTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted || _isFinished) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        if (_secondsRemaining > 1) {
-          _secondsRemaining--;
-        } else {
-          _secondsRemaining = 0;
-          timer.cancel();
-          _finishChallenge();
-        }
-      });
-    });
+  int get _secondsRemaining {
+    final remaining = ((1.0 - _clockController.value) * _kTotalDurationSeconds).ceil();
+    return remaining.clamp(0, _kTotalDurationSeconds);
   }
 
   void _generateNextQuestion() {
+    if (_isFinished) return;
+
     final profile = ref.read(playerProfileProvider).valueOrNull;
     final level = profile?.currentLevel ?? 1;
 
@@ -102,7 +102,6 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
       _currentQuestion = question;
       _currentDistractors = distractors;
       _isFeedback = false;
-      _questionIndex++;
     });
   }
 
@@ -123,24 +122,7 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
       _lastRoundScore = roundScore;
     });
 
-    Timer(const Duration(milliseconds: 380), () {
-      if (!mounted || _isFinished) return;
-      _generateNextQuestion();
-    });
-  }
-
-  void _handleQuestionTimeout() {
-    if (_isFeedback || _isFinished) return;
-
-    _answerResults.add(false);
-
-    setState(() {
-      _isFeedback = true;
-      _lastIsCorrect = false;
-      _lastRoundScore = 0;
-    });
-
-    Timer(const Duration(milliseconds: 380), () {
+    Timer(const Duration(milliseconds: 300), () {
       if (!mounted || _isFinished) return;
       _generateNextQuestion();
     });
@@ -148,7 +130,6 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
 
   Future<void> _finishChallenge() async {
     if (_isFinished) return;
-    _masterTimer?.cancel();
 
     setState(() {
       _isFinished = true;
@@ -222,7 +203,7 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
           ref.invalidate(allTimeEntriesProvider);
         }
       } catch (_) {
-        // Abaikan error jaringan lokal
+        // Abaikan error jaringan
       }
     }
 
@@ -497,76 +478,116 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
                     ),
                   ),
 
+                  // HUD Master Bar: Countdown 60s & Soal Benar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.colorWoodPlank,
-                        borderRadius:
-                            BorderRadius.circular(AppTokens.radiusCard),
-                        border: Border.all(
-                          color: AppTheme.colorWoodMedium,
-                          width: AppTokens.borderWidthDefault,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                AppTheme.colorWoodDark.withValues(alpha: 0.25),
-                            offset: const Offset(0, 3),
-                            blurRadius: 0,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.timer_rounded,
-                                color: _secondsRemaining <= 10
-                                    ? AppTheme.colorCoral
-                                    : AppTheme.colorEspresso,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${_secondsRemaining}s',
-                                style: AppTheme.statNumberStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: _secondsRemaining <= 10
-                                      ? AppTheme.colorCoral
-                                      : AppTheme.colorEspresso,
-                                ),
-                              ),
-                            ],
-                          ),
+                    child: AnimatedBuilder(
+                      animation: _clockController,
+                      builder: (context, _) {
+                        final remaining = _secondsRemaining;
+                        final isLowTime = remaining <= 10;
+                        final progress = (1.0 - _clockController.value).clamp(0.0, 1.0);
 
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: AppTheme.colorSage,
-                                size: 20,
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.colorWoodPlank,
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusCard),
+                            border: Border.all(
+                              color: AppTheme.colorWoodMedium,
+                              width: AppTokens.borderWidthDefault,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    AppTheme.colorWoodDark.withValues(alpha: 0.25),
+                                offset: const Offset(0, 3),
+                                blurRadius: 0,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '$correctCount Benar',
-                                style: GoogleFonts.quicksand(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.colorEspresso,
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.timer_rounded,
+                                        color: isLowTime
+                                            ? AppTheme.colorCoral
+                                            : AppTheme.colorEspresso,
+                                        size: 22,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${remaining}s',
+                                        style: AppTheme.statNumberStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          color: isLowTime
+                                              ? AppTheme.colorCoral
+                                              : AppTheme.colorEspresso,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppTheme.colorSage,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '$correctCount Benar',
+                                        style: GoogleFonts.quicksand(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.colorEspresso,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Smooth 60-Second Master Progress Bar
+                              Container(
+                                height: 8,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.colorWoodMedium
+                                      .withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                alignment: Alignment.centerLeft,
+                                child: FractionallySizedBox(
+                                  widthFactor: progress,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isLowTime
+                                          ? AppTheme.colorCoral
+                                          : AppTheme.colorSage,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
 
@@ -576,17 +597,6 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (_currentQuestion != null && !_isFinished)
-                            CountdownProgressBar(
-                              duration: const Duration(
-                                seconds: _kQuestionTimeoutSeconds,
-                              ),
-                              onTimeout: _handleQuestionTimeout,
-                              resetToken: _questionIndex,
-                              height: 12,
-                            ),
-                          const SizedBox(height: 16),
-
                           if (_currentQuestion != null)
                             QuestionDisplay(question: _currentQuestion!),
                           const SizedBox(height: 24),

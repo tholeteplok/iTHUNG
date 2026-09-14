@@ -15,7 +15,7 @@ import '../../shared/widgets/chunky_card.dart';
 
 enum ChallengeType { blitz, marathon }
 
-/// Modal dialog persiapan sebelum memulai mode Speed Blitz atau Math Marathon.
+/// Modal dialog persiapan sebelum pemain memulai mode Speed Blitz atau Math Marathon.
 class ChallengeBriefingDialog extends ConsumerWidget {
   const ChallengeBriefingDialog({
     super.key,
@@ -223,16 +223,16 @@ class ChallengeBriefingDialog extends ConsumerWidget {
             if (isBlitz) ...[
               _buildRuleTile(
                 icon: Icons.timer_rounded,
-                title: 'Waktu Global 60 Detik',
+                title: 'Waktu Tunggal 60 Detik',
                 description:
-                    'Jawab soal sebanyak-banyaknya sebelum waktu master habis.',
+                    'Jawab soal sebanyak-banyaknya sebelum waktu habis.',
               ),
               const SizedBox(height: 8),
               _buildRuleTile(
-                icon: Icons.hourglass_bottom_rounded,
-                title: 'Timer 5 Detik per Soal',
+                icon: Icons.bolt_rounded,
+                title: 'Bebas Berpikir dalam 60s',
                 description:
-                    'Kehabisan waktu per soal akan melewati soal ke ronde berikutnya.',
+                    'Tidak ada batas waktu per soal. Jawab secepat dan sebanyak mungkin!',
               ),
               const SizedBox(height: 8),
               _buildRuleTile(
