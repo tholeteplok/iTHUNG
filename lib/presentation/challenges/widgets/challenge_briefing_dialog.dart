@@ -236,10 +236,10 @@ class ChallengeBriefingDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               _buildRuleTile(
-                icon: Icons.trending_up_rounded,
-                title: 'Cost-Efficient Cloud Writes',
+                icon: Icons.emoji_events_rounded,
+                title: 'Tantang Rekor Terbaik',
                 description:
-                    'Poin all-time bertambah hanya saat kamu memecahkan rekor lokal.',
+                    'Poin peringkatmu bertambah setiap kali kamu berhasil melampaui skor terbaik sebelumnya.',
               ),
             ] else ...[
               _buildRuleTile(
