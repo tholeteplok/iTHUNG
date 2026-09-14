@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/models/challenge_score_record.dart';
 import '../../../domain/models/level_score_record.dart';
 import '../../../domain/models/player_profile.dart';
 import '../../../domain/repositories/repo_result.dart';
@@ -195,6 +196,21 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
             ref.read(levelStarsProvider.notifier).restoreStars(restoredStarsMap);
           }
         }
+
+        // 2b. Pulihkan rekor mode tantangan (challenge_records) dari Cloud ke Hive lokal
+        final cloudChallengeRecords =
+            cloudData['challenge_records'] as Map<String, dynamic>?;
+        if (cloudChallengeRecords != null && cloudChallengeRecords.isNotEmpty) {
+          final challengeRepo = ref.read(challengeScoreRepositoryProvider);
+          for (final entry in cloudChallengeRecords.entries) {
+            if (entry.value is Map) {
+              final recMap = Map<String, dynamic>.from(entry.value as Map);
+              final record = ChallengeScoreRecord.fromJson(recMap);
+              await challengeRepo.saveRecord(record);
+            }
+          }
+        }
+
         ref.invalidate(profileStatsProvider);
 
         // 3. Rekonsiliasi Dua Arah (Self-Healing Push):
@@ -220,6 +236,16 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
                 }
               }
 
+              final challengeRepo = ref.read(challengeScoreRepositoryProvider);
+              final allChallengeRes = await challengeRepo.getAllRecords();
+              final Map<String, dynamic> localChallengePayload = {};
+              if (allChallengeRes
+                  is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
+                for (final entry in allChallengeRes.value.entries) {
+                  localChallengePayload[entry.key] = entry.value.toJson();
+                }
+              }
+
               await leaderboardRepo.syncProfileProgress(
                 username: usernameToPush,
                 avatarId: restoredProfile.avatarId,
@@ -227,6 +253,9 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
                 currentLevel: restoredProfile.currentLevel,
                 totalXp: restoredProfile.totalXp,
                 levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+                challengeRecords: localChallengePayload.isNotEmpty
+                    ? localChallengePayload
+                    : null,
               );
             } catch (err) {
               debugPrint('[_restoreFromCloud] Gagal self-healing push ke cloud: $err');
@@ -257,6 +286,16 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
                 }
               }
 
+              final challengeRepo = ref.read(challengeScoreRepositoryProvider);
+              final allChallengeRes = await challengeRepo.getAllRecords();
+              final Map<String, dynamic> localChallengePayload = {};
+              if (allChallengeRes
+                  is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
+                for (final entry in allChallengeRes.value.entries) {
+                  localChallengePayload[entry.key] = entry.value.toJson();
+                }
+              }
+
               await leaderboardRepo.syncProfileProgress(
                 username: usernameToSync,
                 avatarId: profileToSync.avatarId,
@@ -264,6 +303,9 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
                 currentLevel: profileToSync.currentLevel,
                 totalXp: profileToSync.totalXp,
                 levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+                challengeRecords: localChallengePayload.isNotEmpty
+                    ? localChallengePayload
+                    : null,
               );
             } catch (err) {
               debugPrint('[_restoreFromCloud] Gagal inisialisasi push profil ke cloud: $err');

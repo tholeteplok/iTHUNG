@@ -7,6 +7,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/level_score_record.dart';
 import '../../../domain/models/session_result.dart';
 import '../../../domain/repositories/repo_result.dart';
+import '../../../domain/services/scoring_service.dart';
 import '../../home/providers/level_stars_provider.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../leaderboard/providers/leaderboard_provider.dart';
@@ -84,6 +85,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     // Dengarkan saat sesi selesai untuk navigasi otomatis ke /results
     ref.listen<GameSessionState>(gameSessionProvider(_args), (prev, next) {
       if (next is SessionEndedState) {
+        final previousProfile = ref.read(playerProfileProvider).valueOrNull;
+        final previousLevel = previousProfile?.currentLevel ?? 1;
+        final previousStars =
+            ref.read(levelStarsProvider).valueOrNull?[widget.level] ?? 0;
+
         // Simpan hasil sesi secara atomik (XP + kenaikan level)
         ref.read(playerProfileProvider.notifier).completeSession(
               playedLevel: widget.level,
@@ -134,28 +140,40 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   );
             }
 
-            // Ambil seluruh rekor level lokal untuk disinkronkan ke cloud
-            final scoreRepo = ref.read(levelScoreRepositoryProvider);
-            final recordsResult = await scoreRepo.getAllRecords();
-            final Map<String, dynamic> levelRecordsPayload = {};
-            if (recordsResult is RepoSuccess<Map<int, LevelScoreRecord>>) {
-              for (final entry in recordsResult.value.entries) {
-                levelRecordsPayload[entry.key.toString()] = entry.value.toJson();
+            final isRecordBroken = deltaResult.scoreDelta > 0;
+            final isFirstPlay = deltaResult.isFirstPlay;
+            final didLevelUp = latest.currentLevel > previousLevel;
+            final newStars = ScoringService.calculateStars(next.result.accuracy);
+            final didEarnNewStars = newStars > previousStars;
+
+            // Cost-Efficient Cloud Writes:
+            // Hanya bakar kuota Firestore jika ada pencapaian prestasi baru yang signifikan
+            // (pecah rekor skor, main pertama kali, naik level, atau tambah bintang).
+            // Replay biasa yang tidak memecahkan rekor = 0 write ke Firestore.
+            if (isRecordBroken || isFirstPlay || didLevelUp || didEarnNewStars) {
+              // Ambil seluruh rekor level lokal untuk disinkronkan ke cloud
+              final scoreRepo = ref.read(levelScoreRepositoryProvider);
+              final recordsResult = await scoreRepo.getAllRecords();
+              final Map<String, dynamic> levelRecordsPayload = {};
+              if (recordsResult is RepoSuccess<Map<int, LevelScoreRecord>>) {
+                for (final entry in recordsResult.value.entries) {
+                  levelRecordsPayload[entry.key.toString()] = entry.value.toJson();
+                }
               }
+
+              // Sync progres lengkap (skor, level, xp, dan rekor per level) ke cloud profil pemain
+              await ref.read(leaderboardRepositoryProvider).syncProfileProgress(
+                    username: username,
+                    avatarId: latest.avatarId,
+                    totalScore: latest.totalScore,
+                    currentLevel: latest.currentLevel,
+                    totalXp: latest.totalXp,
+                    levelRecords: levelRecordsPayload.isNotEmpty ? levelRecordsPayload : null,
+                  );
+
+              // Invalidate allTimeEntriesProvider agar daftar all-time selalu fresh saat dibuka
+              ref.invalidate(allTimeEntriesProvider);
             }
-
-            // Sync progres lengkap (skor, level, xp, dan rekor per level) ke cloud profil pemain
-            await ref.read(leaderboardRepositoryProvider).syncProfileProgress(
-                  username: username,
-                  avatarId: latest.avatarId,
-                  totalScore: latest.totalScore,
-                  currentLevel: latest.currentLevel,
-                  totalXp: latest.totalXp,
-                  levelRecords: levelRecordsPayload.isNotEmpty ? levelRecordsPayload : null,
-                );
-
-            // Invalidate allTimeEntriesProvider agar daftar all-time selalu fresh saat dibuka
-            ref.invalidate(allTimeEntriesProvider);
           } catch (_) {
             // Jika terjadi kegagalan lokal tidak terduga, tetap navigasikan ke results
             if (context.mounted) {

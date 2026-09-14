@@ -58,6 +58,7 @@ abstract class LeaderboardRepository {
     int? currentLevel,
     int? totalXp,
     Map<String, dynamic>? levelRecords,
+    Map<String, dynamic>? challengeRecords,
   });
 
   /// Mengambil data dokumen profil pemain dari /profiles/{uid} di Firestore.

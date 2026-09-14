@@ -6,11 +6,17 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../domain/models/challenge_score_record.dart';
 import '../../../domain/models/daily_challenge.dart';
+import '../../../domain/repositories/repo_result.dart';
 import '../../daily_challenge/providers/daily_challenge_provider.dart';
+import '../../game/providers/game_dependencies_provider.dart';
+import '../../game/providers/level_band_theme_provider.dart';
+import '../../home/providers/player_profile_provider.dart';
 import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/chunky_button.dart';
 import '../../shared/widgets/chunky_card.dart';
+import '../widgets/challenge_briefing_dialog.dart';
 import '../widgets/daily_challenge_briefing_dialog.dart';
 
 /// Layar Hub Pusat Tantangan (ChallengeScreen).
@@ -19,9 +25,9 @@ import '../widgets/daily_challenge_briefing_dialog.dart';
 /// `highPass_canvas.png` dan gaya Cozy Warm Woodwork.
 ///
 /// Fitur Utama:
-/// - Kartu Tantangan Harian (Daily Challenge) dengan briefing readiness modal
-/// - Countdown reset tengah malam
-/// - Teaser mode tantangan mendatang (Speed Blitz & Math Marathon)
+/// - Kartu Tantangan Harian (Daily Challenge)
+/// - Kartu Speed Blitz (60 Detik Sprint)
+/// - Kartu Math Marathon (Sudden Death Survival)
 class ChallengeScreen extends ConsumerStatefulWidget {
   const ChallengeScreen({super.key});
 
@@ -67,6 +73,10 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
   @override
   Widget build(BuildContext context) {
     final completionAsync = ref.watch(dailyChallengeCompletionProvider);
+    final profile = ref.watch(playerProfileProvider).valueOrNull;
+    final config = ref.watch(levelBandsConfigProvider).valueOrNull;
+    final currentLevel = profile?.currentLevel ?? 1;
+    final bandId = config?.bandForLevel(currentLevel).id ?? 'basic';
 
     return PopScope(
       canPop: false,
@@ -88,7 +98,7 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
               ),
             ),
 
-            // Warm Cozy Scrim tipis agar kanvas pedesaan terlihat jelas dan estetik
+            // Warm Cozy Scrim
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -104,101 +114,109 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
               ),
             ),
 
-          // Konten Utama
-          SafeArea(
-            child: Column(
-              children: [
-                // Top App Header sentral
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+            // Konten Utama
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top App Header sentral
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: AppHeader(
+                      title: 'Pusat Tantangan',
+                      showStats: false,
+                      onBackTap: () => context.go('/'),
+                    ),
                   ),
-                  child: AppHeader(
-                    title: 'Pusat Tantangan',
-                    showStats: false,
-                    onBackTap: () => context.go('/'),
-                  ),
-                ),
 
-                // Daftar Kartu Tantangan
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                    children: [
-                      // Subheader Deskripsi Singkat
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
-                        ),
-                        child: Text(
-                          'PILIH TANTANGAN',
-                          style: GoogleFonts.quicksand(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: AppTheme.colorTaupe,
+                  // Daftar Kartu Tantangan
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                      children: [
+                        // Subheader Tantangan Harian
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            'TANTANGAN HARIAN',
+                            style: GoogleFonts.quicksand(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: AppTheme.colorTaupe,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                      // Kartu Utama: Tantangan Harian
-                      completionAsync.when(
-                        loading: () => const _LoadingChallengeCard(),
-                        error: (_, _) => _buildDailyCard(context, null),
-                        data: (result) => _buildDailyCard(context, result),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Subheader Mode Mendatang
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
+                        // Kartu Utama: Tantangan Harian
+                        completionAsync.when(
+                          loading: () => const _LoadingChallengeCard(),
+                          error: (_, _) => _buildDailyCard(context, null),
+                          data: (result) => _buildDailyCard(context, result),
                         ),
-                        child: Text(
-                          'TANTANGAN MENDATANG',
-                          style: GoogleFonts.quicksand(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: AppTheme.colorTaupe,
+                        const SizedBox(height: 24),
+
+                        // Subheader Tantangan Spesial
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            'TANTANGAN SPESIAL',
+                            style: GoogleFonts.quicksand(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: AppTheme.colorTaupe,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                      // Kartu Teaser: Speed Blitz
-                      const _LockedChallengeCard(
-                        title: 'Speed Blitz',
-                        subtitle:
-                            'Tantangan kecepatan kilat 60 detik tanpa henti.',
-                        badgeText: 'Segera Hadir',
-                        iconAsset: AppAssets.icChallengeLightning,
-                      ),
-                      const SizedBox(height: 12),
+                        // Kartu Mode: Speed Blitz
+                        _buildSpecialChallengeCard(
+                          context: context,
+                          type: ChallengeType.blitz,
+                          title: 'Speed Blitz',
+                          subtitle:
+                              'Pacu kecepatan aritmatika kilat 60 detik tanpa henti!',
+                          badgeText: '60 DETIK',
+                          badgeColor: AppTheme.colorCoral,
+                          iconAsset: AppAssets.icChallengeLightning,
+                          bandId: bandId,
+                        ),
+                        const SizedBox(height: 14),
 
-                      // Kartu Teaser: Math Marathon
-                      const _LockedChallengeCard(
-                        title: 'Math Marathon',
-                        subtitle:
-                            'Rantai soal tak hingga sampai kamu melakukan 1 kesalahan.',
-                        badgeText: 'Segera Hadir',
-                        iconAsset: AppAssets.icChallengeCrown,
-                      ),
-                    ],
+                        // Kartu Mode: Math Marathon
+                        _buildSpecialChallengeCard(
+                          context: context,
+                          type: ChallengeType.marathon,
+                          title: 'Math Marathon',
+                          subtitle:
+                              'Mode sudden death survival sampai kamu melakukan 1 kesalahan!',
+                          badgeText: 'SURVIVAL',
+                          badgeColor: AppTheme.colorSage,
+                          iconAsset: AppAssets.icChallengeCrown,
+                          bandId: bandId,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   /// Kartu Utama Tantangan Harian dengan varian WoodBoard.
   Widget _buildDailyCard(
@@ -259,8 +277,8 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
                           color: isDone
-                              ? AppTheme.colorSage
-                              : AppTheme.colorCoral,
+                            ? AppTheme.colorSage
+                            : AppTheme.colorCoral,
                         ),
                       ),
                     ],
@@ -398,6 +416,186 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
       ),
     );
   }
+
+  /// Kartu Tantangan Spesial (Speed Blitz & Math Marathon).
+  Widget _buildSpecialChallengeCard({
+    required BuildContext context,
+    required ChallengeType type,
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    required Color badgeColor,
+    required String iconAsset,
+    required String bandId,
+  }) {
+    final isBlitz = type == ChallengeType.blitz;
+    final modeKey = isBlitz ? 'blitz' : 'marathon';
+    final challengeRepo = ref.watch(challengeScoreRepositoryProvider);
+
+    return ChunkyCard(
+      variant: ChunkyCardVariant.woodBoard,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Baris Badge Atas
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMini),
+                  border: Border.all(
+                    color: badgeColor,
+                    width: AppTokens.borderWidthSubtle,
+                  ),
+                ),
+                child: Text(
+                  badgeText,
+                  style: GoogleFonts.quicksand(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+
+              // Rekor Score Display
+              FutureBuilder<RepoResult<ChallengeScoreRecord?>>(
+                future: challengeRepo.getRecord(modeKey, bandId),
+                builder: (context, snapshot) {
+                  ChallengeScoreRecord? record;
+                  if (snapshot.hasData &&
+                      snapshot.data is RepoSuccess<ChallengeScoreRecord?>) {
+                    record =
+                        (snapshot.data as RepoSuccess<ChallengeScoreRecord?>)
+                            .value;
+                  }
+                  final best = record?.bestScore ?? 0;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.emoji_events_rounded,
+                        size: 14,
+                        color: AppTheme.colorTaupe,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        best > 0 ? 'Rekor: $best Pts' : 'Belum Ada Rekor',
+                        style: AppTheme.statNumberStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.colorTaupe,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Konten Ikon 3D dan Judul
+          Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppTheme.colorWoodPlank,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppTheme.colorWoodMedium,
+                    width: AppTokens.borderWidthWood,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.colorWoodDark.withValues(alpha: 0.2),
+                      offset: const Offset(0, 3),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Image.asset(
+                  iconAsset,
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.colorEspresso,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.colorTaupe,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Action Button
+          ChunkyButton(
+            onPressed: () {
+              ChallengeBriefingDialog.show(context, type: type);
+            },
+            backgroundColor:
+                isBlitz ? AppTheme.colorCoral : AppTheme.colorSage,
+            borderColor: AppTheme.colorWoodDark,
+            shadowColor: AppTheme.colorWoodDark,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isBlitz ? 'Mainkan Speed Blitz' : 'Mulai Math Marathon',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Kartu Loading Placeholder
@@ -411,123 +609,6 @@ class _LoadingChallengeCard extends StatelessWidget {
       padding: EdgeInsets.all(28),
       child: Center(
         child: CircularProgressIndicator(color: AppTheme.colorWoodMedium),
-      ),
-    );
-  }
-}
-
-/// Kartu Teaser untuk tantangan yang masih terkunci.
-class _LockedChallengeCard extends StatelessWidget {
-  const _LockedChallengeCard({
-    required this.title,
-    required this.subtitle,
-    required this.badgeText,
-    required this.iconAsset,
-  });
-
-  final String title;
-  final String subtitle;
-  final String badgeText;
-  final String iconAsset;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.colorWoodPlank.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(
-          color: AppTheme.colorWoodMedium.withValues(alpha: 0.6),
-          width: AppTokens.borderWidthDefault,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Ikon mode dengan filter transparan lembut
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppTheme.colorWoodPlank.withValues(alpha: 0.7),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppTheme.colorWoodMedium.withValues(alpha: 0.6),
-                width: AppTokens.borderWidthDefault,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Opacity(
-              opacity: 0.65,
-              child: Image.asset(
-                iconAsset,
-                width: 32,
-                height: 32,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // Detail Teks & Badge
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.quicksand(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.colorEspresso,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.colorWoodMedium.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(
-                          AppTokens.radiusMini,
-                        ),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: GoogleFonts.quicksand(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.colorTaupe,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.quicksand(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.colorTaupe,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Gembok status terkunci
-          const Icon(
-            Icons.lock_outline_rounded,
-            size: 20,
-            color: AppTheme.colorTaupe,
-          ),
-        ],
       ),
     );
   }

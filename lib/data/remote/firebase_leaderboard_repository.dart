@@ -328,6 +328,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     int? currentLevel,
     int? totalXp,
     Map<String, dynamic>? levelRecords,
+    Map<String, dynamic>? challengeRecords,
   }) async {
     try {
       final currentUid = auth.currentUser?.uid;
@@ -340,6 +341,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         currentLevel: currentLevel,
         totalXp: totalXp,
         levelRecords: levelRecords,
+        challengeRecords: challengeRecords,
       );
       return const RepoSuccess(null);
     } catch (e) {
@@ -401,6 +403,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     int? currentLevel,
     int? totalXp,
     Map<String, dynamic>? levelRecords,
+    Map<String, dynamic>? challengeRecords,
   }) async {
     final ref = firestore.collection(profilesCollection).doc(uid);
     await firestore.runTransaction((tx) async {
@@ -454,6 +457,37 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         }
       }
 
+      final existingChallengeRecords = snap.exists
+          ? (snap.data()?['challenge_records'] as Map<String, dynamic>? ?? {})
+          : <String, dynamic>{};
+
+      final mergedChallengeRecords =
+          Map<String, dynamic>.from(existingChallengeRecords);
+      if (challengeRecords != null) {
+        for (final entry in challengeRecords.entries) {
+          final k = entry.key;
+          if (entry.value is! Map) continue;
+          final newVal = Map<String, dynamic>.from(entry.value as Map);
+          final oldVal = mergedChallengeRecords[k] is Map
+              ? Map<String, dynamic>.from(mergedChallengeRecords[k] as Map)
+              : null;
+          if (oldVal == null) {
+            mergedChallengeRecords[k] = newVal;
+          } else {
+            final oldBest = ((oldVal['best_score'] ?? 0) as num).toInt();
+            final newBest = ((newVal['best_score'] ?? 0) as num).toInt();
+            final oldAttempts = ((oldVal['attempts'] ?? 0) as num).toInt();
+            final newAttempts = ((newVal['attempts'] ?? 0) as num).toInt();
+            mergedChallengeRecords[k] = {
+              'mode': newVal['mode'] ?? oldVal['mode'],
+              'band': newVal['band'] ?? oldVal['band'],
+              'best_score': newBest > oldBest ? newBest : oldBest,
+              'attempts': newAttempts > oldAttempts ? newAttempts : oldAttempts,
+            };
+          }
+        }
+      }
+
       final profilePayload = <String, dynamic>{
         'username': username,
         'avatar_id': avatarId,
@@ -464,6 +498,9 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
       };
       if (mergedLevelRecords.isNotEmpty) {
         profilePayload['level_records'] = mergedLevelRecords;
+      }
+      if (mergedChallengeRecords.isNotEmpty) {
+        profilePayload['challenge_records'] = mergedChallengeRecords;
       }
 
       tx.set(ref, profilePayload, SetOptions(merge: true));
