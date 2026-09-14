@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/models/challenge_score_record.dart';
 import '../../../domain/models/daily_challenge.dart';
 import '../../../domain/repositories/repo_result.dart';
 import '../../game/providers/game_dependencies_provider.dart';
@@ -83,6 +84,33 @@ class DailySyncService {
               '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
           await dailyRepo.markSubmissionSynced('${dateKey}_$bandId');
           _ref.invalidate(leaderboardEntriesProvider(bandId));
+        }
+      }
+
+      // 3. Sinkronkan rekor tantangan khusus (Speed Blitz & Math Marathon) dari Hive ke Firestore
+      final challengeRepo = _ref.read(challengeScoreRepositoryProvider);
+      final challengeRecordsRes = await challengeRepo.getAllRecords();
+      if (challengeRecordsRes is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
+        bool challengeSubmitted = false;
+        for (final entry in challengeRecordsRes.value.entries) {
+          final record = entry.value;
+          if (record.bestScore > 0) {
+            final res = await leaderboardRepo.submitChallengeScore(
+              mode: record.mode,
+              band: record.band,
+              score: record.bestScore,
+              username: username,
+              avatarId: profile?.avatarId,
+            );
+            if (res is RepoSuccess) {
+              challengeSubmitted = true;
+            }
+          }
+        }
+        if (challengeSubmitted) {
+          final currentBand = _ref.read(leaderboardSelectedBandProvider);
+          _ref.invalidate(challengeEntriesProvider((mode: 'blitz', band: currentBand)));
+          _ref.invalidate(challengeEntriesProvider((mode: 'marathon', band: currentBand)));
         }
       }
 
