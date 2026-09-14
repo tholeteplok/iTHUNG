@@ -17,7 +17,7 @@ import '../providers/settings_provider.dart';
 
 /// Layar pengaturan preferensi audio, haptik, dan informasi aplikasi iTHUNG.
 ///
-/// Dirancang dengan Neobrutalism terpusat menggunakan [ChunkyCard], [ChunkyButton],
+/// Dirancang terpusat menggunakan [ChunkyCard], [ChunkyButton],
 /// serta token desain [AppTokens] dan [AppTheme] tanpa hardcoding.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -142,7 +142,7 @@ class _AudioCard extends ConsumerWidget {
           const Divider(color: AppTheme.darkBorder, height: 1),
           const SizedBox(height: 16),
 
-          // Baris BGM Switch & Slider
+          // Baris BGM Switch
           _AudioControlRow(
             key: const Key('row_bgm'),
             toggleKey: const Key('switch_bgm'),
@@ -150,13 +150,11 @@ class _AudioCard extends ConsumerWidget {
             subtitle: 'Lagu suasana tema adaptif di setiap zona',
             icon: Icons.music_note_rounded,
             isMuted: settings.bgmMuted,
-            volume: settings.bgmVolume,
             onToggle: () => notifier.toggleBgm(),
-            onVolumeChanged: (val) => notifier.setBgmVolume(val),
           ),
           const SizedBox(height: 20),
 
-          // Baris SFX Switch & Slider
+          // Baris SFX Switch
           _AudioControlRow(
             key: const Key('row_sfx'),
             toggleKey: const Key('switch_sfx'),
@@ -164,9 +162,7 @@ class _AudioCard extends ConsumerWidget {
             subtitle: 'Respon ketukan, jawaban benar/salah, & hadiah',
             icon: Icons.graphic_eq_rounded,
             isMuted: settings.sfxMuted,
-            volume: settings.sfxVolume,
             onToggle: () => notifier.toggleSfx(),
-            onVolumeChanged: (val) => notifier.setSfxVolume(val),
           ),
         ],
       ),
@@ -174,7 +170,7 @@ class _AudioCard extends ConsumerWidget {
   }
 }
 
-/// Baris kontrol audio dengan switch on/off dan slider volume.
+/// Baris kontrol audio dengan switch on/off.
 class _AudioControlRow extends StatelessWidget {
   const _AudioControlRow({
     super.key,
@@ -182,9 +178,7 @@ class _AudioControlRow extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.isMuted,
-    required this.volume,
     required this.onToggle,
-    required this.onVolumeChanged,
     this.toggleKey,
   });
 
@@ -192,126 +186,79 @@ class _AudioControlRow extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final bool isMuted;
-  final double volume;
   final VoidCallback onToggle;
-  final ValueChanged<double> onVolumeChanged;
   final Key? toggleKey;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isMuted ? Colors.grey.shade400 : AppTheme.darkBorder,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.quicksand(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.darkBorder,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.quicksand(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Neobrutalist Toggle Switch
-            GestureDetector(
-              key: toggleKey,
-              onTap: onToggle,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 52,
-                height: 30,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: isMuted
-                      ? const Color(0xFFE0E0E0)
-                      : AppTheme.fallbackAccent,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  border: Border.all(
-                    color: AppTheme.darkBorder,
-                    width: AppTokens.borderWidthDefault,
-                  ),
-                ),
-                alignment:
-                    isMuted ? Alignment.centerLeft : Alignment.centerRight,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppTheme.darkBorder,
-                      width: AppTokens.borderWidthSubtle,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        Icon(
+          icon,
+          size: 20,
+          color: isMuted ? Colors.grey.shade400 : AppTheme.darkBorder,
         ),
-        if (!isMuted) ...[
-          const SizedBox(height: 8),
-          Row(
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                volume == 0 ? Icons.volume_mute_rounded : Icons.volume_down_rounded,
-                size: 18,
-                color: Colors.grey.shade700,
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: AppTheme.fallbackAccent,
-                    inactiveTrackColor: const Color(0xFFDCEDC8),
-                    thumbColor: Colors.white,
-                    overlayColor: AppTheme.fallbackAccent.withValues(alpha: 0.2),
-                    trackHeight: 6,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 10,
-                      elevation: 2,
-                    ),
-                  ),
-                  child: Slider(
-                    value: volume,
-                    min: 0.0,
-                    max: 1.0,
-                    onChanged: onVolumeChanged,
-                  ),
+              Text(
+                title,
+                style: GoogleFonts.quicksand(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.darkBorder,
                 ),
               ),
               Text(
-                '${(volume * 100).round()}%',
-                style: AppTheme.statNumberStyle(
+                subtitle,
+                style: GoogleFonts.quicksand(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
           ),
-        ],
+        ),
+        const SizedBox(width: 8),
+        // Toggle Switch
+        GestureDetector(
+          key: toggleKey,
+          onTap: onToggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 52,
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: isMuted
+                  ? const Color(0xFFE0E0E0)
+                  : AppTheme.fallbackAccent,
+              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+              border: Border.all(
+                color: AppTheme.darkBorder,
+                width: AppTokens.borderWidthDefault,
+              ),
+            ),
+            alignment:
+                isMuted ? Alignment.centerLeft : Alignment.centerRight,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.darkBorder,
+                  width: AppTokens.borderWidthSubtle,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -463,7 +410,7 @@ class _GameplayCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Transisi halus & responsif gaya Neobrutalis',
+                      'Transisi halus & responsif untuk pengalaman bermain lebih hidup',
                       style: GoogleFonts.quicksand(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,

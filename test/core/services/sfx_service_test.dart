@@ -83,7 +83,9 @@ void main() {
       expect(SfxType.values, contains(SfxType.levelUp));
       expect(SfxType.values, contains(SfxType.chestOpen));
       expect(SfxType.values, contains(SfxType.tap));
-      expect(SfxType.values.length, equals(5));
+      expect(SfxType.values, contains(SfxType.timerTick));
+      expect(SfxType.values, contains(SfxType.timerWarning));
+      expect(SfxType.values.length, equals(7));
     });
 
     test('AudioSettingsNotifier toggles BGM and SFX state properly', () async {

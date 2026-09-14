@@ -244,22 +244,35 @@ class QuestionGenerator {
     final c = 2 + rng.nextInt(8); // 2..9
     final isAdd = rng.nextBool();
     final useAdd = isAdd || a == b;
-    final innerValue = useAdd ? a + b : (a - b).abs();
+
+    int first = a;
+    int second = b;
+    if (!useAdd) {
+      // Pastikan operand pertama lebih besar agar hasil dalam kurung selalu positif
+      if (first < second) {
+        final temp = first;
+        first = second;
+        second = temp;
+      }
+      if (first == second) return null;
+    }
+
+    final innerValue = useAdd ? first + second : first - second;
     // Pastikan inner positif dan tidak nol agar soal valid.
     if (innerValue <= 0) return null;
     final correct = innerValue * c;
     final sign = useAdd ? '+' : '-';
-    final factKey = '($a$sign$b)x$c';
+    final factKey = '($first$sign$second)x$c';
     final id = 'q_${factKey}_${rng.nextInt(1000000)}';
 
     return Question(
       id: id,
       factKey: factKey,
       operation: Operation.mixedMultistep,
-      operands: [a, b, c],
+      operands: [first, second, c],
       correctAnswer: correct,
       difficulty: QuestionDifficulty(
-        operandMagnitude: _resolveMagnitude(a > b ? a : b, c),
+        operandMagnitude: _resolveMagnitude(first > second ? first : second, c),
         structuralProperty: StructuralProperty.none,
         strategyTag: StrategyTag.procedural,
         stepCount: 2,

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../models/challenge_score_record.dart';
 import '../models/level_score_record.dart';
 import '../models/round_result.dart';
 import '../models/session_result.dart';
@@ -46,18 +47,7 @@ class ScoringService {
     // - Intermediate (Level 16–30): Base 40 (4.0x)
     // - Advanced (Level 31–50): Base 70 (7.0x)
     // - Expert (Level 51+): Base 100 (10.0x)
-    final int basePoints;
-    if (level <= 5) {
-      basePoints = 10;
-    } else if (level <= 15) {
-      basePoints = 20;
-    } else if (level <= 30) {
-      basePoints = 40;
-    } else if (level <= 50) {
-      basePoints = 70;
-    } else {
-      basePoints = 100;
-    }
+    final int basePoints = basePointsForLevel(level);
 
     // speed_bonus = round(base_points * 0.3 * (time_left / time_total))
     final timeRatio = timeTotalMs > 0
@@ -142,5 +132,65 @@ class ScoringService {
     } else {
       return 0;
     }
+  }
+
+  /// Menghitung base points diskret proporsional terhadap level band:
+  /// - Onboarding (Level 1–5): Base 10 (1.0x)
+  /// - Basic (Level 6–15): Base 20 (2.0x)
+  /// - Intermediate (Level 16–30): Base 40 (4.0x)
+  /// - Advanced (Level 31–50): Base 70 (7.0x)
+  /// - Expert (Level 51+): Base 100 (10.0x)
+  static int basePointsForLevel(int level) {
+    if (level <= 5) {
+      return 10;
+    } else if (level <= 15) {
+      return 20;
+    } else if (level <= 30) {
+      return 40;
+    } else if (level <= 50) {
+      return 70;
+    } else {
+      return 100;
+    }
+  }
+
+  /// Pengali tingkat kesulitan relatif terhadap base level 1 (10 poin).
+  static double levelMultiplier(int level) => basePointsForLevel(level) / 10.0;
+
+  /// Menghitung skor mode Speed Blitz (jawaban benar terbanyak dalam 60 detik).
+  ///
+  /// Tanpa bonus kecepatan individual karena throughput jawaban dalam 60 detik
+  /// sudah menjadi reward kecepatan secara alami.
+  int computeBlitzScore(List<bool> answerResults, int currentLevel) {
+    final basePoints = basePointsForLevel(currentLevel);
+    final correctCount = answerResults.where((r) => r).length;
+    return correctCount * basePoints;
+  }
+
+  /// Menghitung skor mode Math Marathon (rantai jawaban benar sampai salah/timeout).
+  ///
+  /// Memberikan streak bonus bertahap (maksimum 40 poin bonus per soal)
+  /// untuk mengapresiasi ketahanan dan fokus mental.
+  int computeMarathonScore(int correctStreakLength, int currentLevel) {
+    final basePoints = basePointsForLevel(currentLevel);
+    var total = 0;
+    for (var position = 1; position <= correctStreakLength; position++) {
+      final streakBonus = (position * 2).clamp(0, 40);
+      total += basePoints + streakBonus;
+    }
+    return total;
+  }
+
+  /// Menghitung kontribusi delta skor ke total_score all-time saat rekor pribadi pecah.
+  ///
+  /// Mencegah grinding abuse di zona rendah dengan memadukan delta murni
+  /// dengan pengali zona (zoneConstant).
+  int computeChallengeReplayDelta({
+    required ChallengeScoreRecord currentRecord,
+    required int newChallengeScore,
+    required double zoneConstant,
+  }) {
+    final result = currentRecord.applyAttempt(newChallengeScore);
+    return (result.delta * 0.10 * zoneConstant).round();
   }
 }

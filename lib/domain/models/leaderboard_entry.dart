@@ -1,10 +1,8 @@
 /// Model untuk baris entri papan peringkat (LeaderboardEntry).
 ///
 /// Menampilkan username (bukan email), skor benar, waktu tie-breaker,
-/// dan flag penanda pemain aktif.
+/// rekor streak (untuk marathon), dan flag penanda pemain aktif.
 /// File ini adalah Pure Dart dan tidak bergantung pada Flutter atau Riverpod.
-library;
-
 class LeaderboardEntry {
   const LeaderboardEntry({
     required this.rank,
@@ -14,6 +12,7 @@ class LeaderboardEntry {
     required this.totalTimeMs,
     required this.isCurrentPlayer,
     this.totalScore,
+    this.streak,
   });
 
   /// Posisi peringkat (1-based index).
@@ -25,7 +24,7 @@ class LeaderboardEntry {
   /// ID preset avatar pemain (mis. 'avatar_0' .. 'avatar_8', atau null jika inisial).
   final String? avatarId;
 
-  /// Jumlah jawaban benar (skor daily challenge).
+  /// Jumlah jawaban benar (skor daily challenge atau mode speed).
   final int correctCount;
 
   /// Total waktu penyelesaian dalam milidetik (tie-breaker).
@@ -37,9 +36,11 @@ class LeaderboardEntry {
   /// Akumulasi total skor sepanjang masa (hanya terisi di mode all-time, null di mode daily).
   final int? totalScore;
 
+  /// Panjang rekor streak berturut-turut (khusus mode marathon).
+  final int? streak;
+
   /// Format waktu dalam detik (mis. "24.5s").
   String get formattedTime => '${(totalTimeMs / 1000).toStringAsFixed(1)}s';
-
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     return LeaderboardEntry(
@@ -54,6 +55,9 @@ class LeaderboardEntry {
       totalScore: json['total_score'] != null
           ? ((json['total_score']) as num).toInt()
           : null,
+      streak: json['streak'] != null
+          ? ((json['streak']) as num).toInt()
+          : null,
     );
   }
 
@@ -65,6 +69,7 @@ class LeaderboardEntry {
     'total_time_ms': totalTimeMs,
     'is_current_player': isCurrentPlayer,
     if (totalScore != null) 'total_score': totalScore,
+    if (streak != null) 'streak': streak,
   };
 
   LeaderboardEntry copyWith({
@@ -76,6 +81,7 @@ class LeaderboardEntry {
     int? totalTimeMs,
     bool? isCurrentPlayer,
     int? totalScore,
+    int? streak,
   }) {
     return LeaderboardEntry(
       rank: rank ?? this.rank,
@@ -85,6 +91,7 @@ class LeaderboardEntry {
       totalTimeMs: totalTimeMs ?? this.totalTimeMs,
       isCurrentPlayer: isCurrentPlayer ?? this.isCurrentPlayer,
       totalScore: totalScore ?? this.totalScore,
+      streak: streak ?? this.streak,
     );
   }
 
@@ -99,6 +106,7 @@ class LeaderboardEntry {
           correctCount == other.correctCount &&
           totalTimeMs == other.totalTimeMs &&
           totalScore == other.totalScore &&
+          streak == other.streak &&
           isCurrentPlayer == other.isCurrentPlayer;
 
   @override
@@ -109,10 +117,11 @@ class LeaderboardEntry {
     correctCount,
     totalTimeMs,
     totalScore,
+    streak,
     isCurrentPlayer,
   );
 
   @override
   String toString() =>
-      'LeaderboardEntry(#$rank, @$username, avatar: $avatarId, score: $correctCount, allTime: $totalScore, time: $formattedTime, me: $isCurrentPlayer)';
+      'LeaderboardEntry(#$rank, @$username, avatar: $avatarId, score: $correctCount, allTime: $totalScore, streak: $streak, time: $formattedTime, me: $isCurrentPlayer)';
 }

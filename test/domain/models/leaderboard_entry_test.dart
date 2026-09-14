@@ -55,6 +55,29 @@ void main() {
       expect(from.totalScore, equals(4500));
       expect(from, equals(entry));
     });
+
+    test('supports streak for marathon mode', () {
+      const entry = LeaderboardEntry(
+        rank: 1,
+        username: 'runner',
+        correctCount: 0,
+        totalTimeMs: 0,
+        isCurrentPlayer: true,
+        totalScore: 3200,
+        streak: 42,
+      );
+
+      final json = entry.toJson();
+      expect(json['streak'], equals(42));
+
+      final from = LeaderboardEntry.fromJson(json);
+      expect(from.streak, equals(42));
+      expect(from, equals(entry));
+
+      final updated = entry.copyWith(streak: 50);
+      expect(updated.streak, equals(50));
+      expect(updated.rank, equals(1));
+    });
   });
 }
 

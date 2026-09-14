@@ -328,6 +328,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     int? currentLevel,
     int? totalXp,
     Map<String, dynamic>? levelRecords,
+    Map<String, dynamic>? challengeRecords,
   }) async {
     try {
       final currentUid = auth.currentUser?.uid;
@@ -340,6 +341,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         currentLevel: currentLevel,
         totalXp: totalXp,
         levelRecords: levelRecords,
+        challengeRecords: challengeRecords,
       );
       return const RepoSuccess(null);
     } catch (e) {
@@ -401,6 +403,7 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
     int? currentLevel,
     int? totalXp,
     Map<String, dynamic>? levelRecords,
+    Map<String, dynamic>? challengeRecords,
   }) async {
     final ref = firestore.collection(profilesCollection).doc(uid);
     await firestore.runTransaction((tx) async {
@@ -454,6 +457,37 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         }
       }
 
+      final existingChallengeRecords = snap.exists
+          ? (snap.data()?['challenge_records'] as Map<String, dynamic>? ?? {})
+          : <String, dynamic>{};
+
+      final mergedChallengeRecords =
+          Map<String, dynamic>.from(existingChallengeRecords);
+      if (challengeRecords != null) {
+        for (final entry in challengeRecords.entries) {
+          final k = entry.key;
+          if (entry.value is! Map) continue;
+          final newVal = Map<String, dynamic>.from(entry.value as Map);
+          final oldVal = mergedChallengeRecords[k] is Map
+              ? Map<String, dynamic>.from(mergedChallengeRecords[k] as Map)
+              : null;
+          if (oldVal == null) {
+            mergedChallengeRecords[k] = newVal;
+          } else {
+            final oldBest = ((oldVal['best_score'] ?? 0) as num).toInt();
+            final newBest = ((newVal['best_score'] ?? 0) as num).toInt();
+            final oldAttempts = ((oldVal['attempts'] ?? 0) as num).toInt();
+            final newAttempts = ((newVal['attempts'] ?? 0) as num).toInt();
+            mergedChallengeRecords[k] = {
+              'mode': newVal['mode'] ?? oldVal['mode'],
+              'band': newVal['band'] ?? oldVal['band'],
+              'best_score': newBest > oldBest ? newBest : oldBest,
+              'attempts': newAttempts > oldAttempts ? newAttempts : oldAttempts,
+            };
+          }
+        }
+      }
+
       final profilePayload = <String, dynamic>{
         'username': username,
         'avatar_id': avatarId,
@@ -464,6 +498,9 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
       };
       if (mergedLevelRecords.isNotEmpty) {
         profilePayload['level_records'] = mergedLevelRecords;
+      }
+      if (mergedChallengeRecords.isNotEmpty) {
+        profilePayload['challenge_records'] = mergedChallengeRecords;
       }
 
       tx.set(ref, profilePayload, SetOptions(merge: true));
@@ -496,6 +533,174 @@ class FirebaseLeaderboardRepository implements LeaderboardRepository {
         FirebaseErrorMapper.map(
           e,
           defaultMessage: 'Gagal memuat profil publik pemain',
+        ),
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<RepoResult<List<LeaderboardEntry>>> fetchChallengeLeaderboard({
+    required String mode,
+    required String band,
+    int limit = 50,
+    String? currentPlayerUsername,
+  }) async {
+    try {
+      final snapshot = await firestore
+          .collection('challenge_leaderboards')
+          .doc('${mode}_$band')
+          .collection('entries')
+          .orderBy('best_score', descending: true)
+          .limit(limit)
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      final entries = <LeaderboardEntry>[];
+      var rank = 1;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final username = (data['username'] ?? 'Pemain') as String;
+        final isCurrent = currentPlayerUsername != null &&
+            username.toLowerCase() == currentPlayerUsername.toLowerCase();
+
+        entries.add(
+          LeaderboardEntry(
+            rank: rank++,
+            username: username,
+            avatarId: data['avatar_id'] as String?,
+            correctCount: ((data['correct_count'] ?? 0) as num).toInt(),
+            totalTimeMs: 0,
+            isCurrentPlayer: isCurrent,
+            totalScore: ((data['best_score'] ?? 0) as num).toInt(),
+            streak: data['streak'] != null
+                ? ((data['streak']) as num).toInt()
+                : null,
+          ),
+        );
+      }
+
+      return RepoSuccess(entries);
+    } catch (e) {
+      return RepoFailure(
+        FirebaseErrorMapper.map(
+          e,
+          defaultMessage: 'Gagal memuat papan peringkat tantangan',
+        ),
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<RepoResult<LeaderboardEntry?>> getPlayerChallengeEntry({
+    required String mode,
+    required String band,
+    required String username,
+  }) async {
+    try {
+      final clean = username.trim();
+      if (clean.isEmpty) return const RepoSuccess(null);
+
+      final querySnapshot = await firestore
+          .collection('challenge_leaderboards')
+          .doc('${mode}_$band')
+          .collection('entries')
+          .where('username', isEqualTo: clean)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      if (querySnapshot.docs.isEmpty) {
+        return const RepoSuccess(null);
+      }
+
+      final doc = querySnapshot.docs.first;
+      final data = doc.data();
+      final score = ((data['best_score'] ?? 0) as num).toInt();
+
+      final higherCountSnapshot = await firestore
+          .collection('challenge_leaderboards')
+          .doc('${mode}_$band')
+          .collection('entries')
+          .where('best_score', isGreaterThan: score)
+          .count()
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      final rank = (higherCountSnapshot.count ?? 0) + 1;
+
+      return RepoSuccess(
+        LeaderboardEntry(
+          rank: rank,
+          username: clean,
+          avatarId: data['avatar_id'] as String?,
+          correctCount: ((data['correct_count'] ?? 0) as num).toInt(),
+          totalTimeMs: 0,
+          isCurrentPlayer: true,
+          totalScore: score,
+          streak: data['streak'] != null
+              ? ((data['streak']) as num).toInt()
+              : null,
+        ),
+      );
+    } catch (e) {
+      return RepoFailure(
+        FirebaseErrorMapper.map(
+          e,
+          defaultMessage: 'Gagal menghitung peringkat tantangan pemain',
+        ),
+        e,
+      );
+    }
+  }
+
+  @override
+  Future<RepoResult<void>> submitChallengeScore({
+    required String mode,
+    required String band,
+    required int score,
+    int? correctCount,
+    int? streak,
+    required String username,
+    String? avatarId,
+  }) async {
+    try {
+      final currentUid = auth.currentUser?.uid ?? username.trim().toLowerCase();
+      final docRef = firestore
+          .collection('challenge_leaderboards')
+          .doc('${mode}_$band')
+          .collection('entries')
+          .doc(currentUid);
+
+      await firestore.runTransaction((tx) async {
+        final snap = await tx.get(docRef);
+        final existingScore = snap.exists
+            ? ((snap.data()?['best_score'] ?? 0) as num).toInt()
+            : 0;
+
+        if (score > existingScore) {
+          final payload = <String, dynamic>{
+            'player_id': currentUid,
+            'username': username,
+            'avatar_id': avatarId,
+            'best_score': score,
+            'updated_at': FieldValue.serverTimestamp(),
+          };
+          if (correctCount != null) payload['correct_count'] = correctCount;
+          if (streak != null) payload['streak'] = streak;
+
+          tx.set(docRef, payload, SetOptions(merge: true));
+        }
+      }).timeout(const Duration(seconds: 10));
+
+      return const RepoSuccess(null);
+    } catch (e) {
+      return RepoFailure(
+        FirebaseErrorMapper.map(
+          e,
+          defaultMessage: 'Gagal mencatat skor tantangan ke papan peringkat',
         ),
         e,
       );

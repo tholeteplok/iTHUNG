@@ -8,6 +8,8 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/models/session_result.dart';
 import 'presentation/challenges/screens/challenge_screen.dart';
+import 'presentation/challenges/screens/math_marathon_screen.dart';
+import 'presentation/challenges/screens/speed_blitz_screen.dart';
 import 'presentation/daily_challenge/widgets/daily_challenge_screen.dart';
 import 'presentation/game/widgets/game_screen.dart';
 import 'presentation/home/widgets/home_screen.dart';
@@ -99,6 +101,14 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/daily/play',
       builder: (context, state) => const DailyChallengeScreen(),
+    ),
+    GoRoute(
+      path: '/challenges/blitz',
+      builder: (context, state) => const SpeedBlitzScreen(),
+    ),
+    GoRoute(
+      path: '/challenges/marathon',
+      builder: (context, state) => const MathMarathonScreen(),
     ),
     GoRoute(
       path: '/results',

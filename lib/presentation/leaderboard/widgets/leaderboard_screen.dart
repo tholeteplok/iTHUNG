@@ -20,7 +20,7 @@ import '../providers/leaderboard_provider.dart';
 import 'leaderboard_podium.dart';
 import 'pinned_self_rank_bar.dart';
 
-/// Layar Papan Peringkat Global / Kohor Harian (LeaderboardScreen - /leaderboard).
+/// Layar Papan Peringkat Global / Kohor Harian / Speed Blitz / Math Marathon.
 class LeaderboardScreen extends ConsumerWidget {
   const LeaderboardScreen({super.key});
 
@@ -41,13 +41,25 @@ class LeaderboardScreen extends ConsumerWidget {
     final mode = ref.watch(leaderboardModeProvider);
     final selectedBand = ref.watch(leaderboardSelectedBandProvider);
 
-    final entriesAsync = mode == LeaderboardMode.daily
-        ? ref.watch(leaderboardEntriesProvider(selectedBand))
-        : ref.watch(allTimeEntriesProvider);
+    final entriesAsync = switch (mode) {
+      LeaderboardMode.daily =>
+        ref.watch(leaderboardEntriesProvider(selectedBand)),
+      LeaderboardMode.blitz =>
+        ref.watch(challengeEntriesProvider((mode: 'blitz', band: selectedBand))),
+      LeaderboardMode.marathon => ref.watch(
+          challengeEntriesProvider((mode: 'marathon', band: selectedBand))),
+      LeaderboardMode.allTime => ref.watch(allTimeEntriesProvider),
+    };
 
-    final playerEntryAsync = mode == LeaderboardMode.daily
-        ? ref.watch(playerLeaderboardEntryProvider(selectedBand))
-        : const AsyncValue.data(null);
+    final playerEntryAsync = switch (mode) {
+      LeaderboardMode.daily =>
+        ref.watch(playerLeaderboardEntryProvider(selectedBand)),
+      LeaderboardMode.blitz => ref.watch(
+          playerChallengeEntryProvider((mode: 'blitz', band: selectedBand))),
+      LeaderboardMode.marathon => ref.watch(
+          playerChallengeEntryProvider((mode: 'marathon', band: selectedBand))),
+      LeaderboardMode.allTime => const AsyncValue.data(null),
+    };
 
     void navigateToPlayerProfile(LeaderboardEntry entry) {
       if (entry.isCurrentPlayer) {
@@ -76,12 +88,12 @@ class LeaderboardScreen extends ConsumerWidget {
                 onBackTap: () => context.go('/'),
               ),
 
-              // Mode Toggle Pill (Harian / Semua Waktu)
+              // Mode Toggle Pill (Harian / Speed / Maraton / Semua)
               const _ModeToggle(),
               const SizedBox(height: 6),
 
-              // Band Tabs Selector — hanya tampil di mode daily
-              if (mode == LeaderboardMode.daily) ...[
+              // Band Tabs Selector â€” tampil di mode yang mendukung level band
+              if (mode.hasBandSelector) ...[
                 const _BandTabsSelector(),
                 const SizedBox(height: 8),
               ] else
@@ -94,10 +106,18 @@ class LeaderboardScreen extends ConsumerWidget {
                   error: (err, _) => LeaderboardErrorView(
                     error: err,
                     onRetry: () {
-                      if (mode == LeaderboardMode.daily) {
-                        ref.invalidate(leaderboardEntriesProvider(selectedBand));
-                      } else {
-                        ref.invalidate(allTimeEntriesProvider);
+                      switch (mode) {
+                        case LeaderboardMode.daily:
+                          ref.invalidate(
+                              leaderboardEntriesProvider(selectedBand));
+                        case LeaderboardMode.blitz:
+                          ref.invalidate(challengeEntriesProvider(
+                              (mode: 'blitz', band: selectedBand)));
+                        case LeaderboardMode.marathon:
+                          ref.invalidate(challengeEntriesProvider(
+                              (mode: 'marathon', band: selectedBand)));
+                        case LeaderboardMode.allTime:
+                          ref.invalidate(allTimeEntriesProvider);
                       }
                     },
                   ),
@@ -115,18 +135,32 @@ class LeaderboardScreen extends ConsumerWidget {
                             color: AppTheme.colorWoodMedium,
                             backgroundColor: AppTheme.colorVanillaCard,
                             onRefresh: () async {
-                              if (mode == LeaderboardMode.daily) {
-                                await ref
-                                    .read(dailySyncServiceProvider)
-                                    .syncPendingSubmissions();
-                                ref.invalidate(
-                                    leaderboardEntriesProvider(selectedBand));
-                                await ref.read(
-                                    leaderboardEntriesProvider(selectedBand)
-                                        .future);
-                              } else {
-                                ref.invalidate(allTimeEntriesProvider);
-                                await ref.read(allTimeEntriesProvider.future);
+                              switch (mode) {
+                                case LeaderboardMode.daily:
+                                  await ref
+                                      .read(dailySyncServiceProvider)
+                                      .syncPendingSubmissions();
+                                  ref.invalidate(
+                                      leaderboardEntriesProvider(selectedBand));
+                                  await ref.read(
+                                      leaderboardEntriesProvider(selectedBand)
+                                          .future);
+                                case LeaderboardMode.blitz:
+                                  ref.invalidate(challengeEntriesProvider(
+                                      (mode: 'blitz', band: selectedBand)));
+                                  await ref.read(challengeEntriesProvider(
+                                          (mode: 'blitz', band: selectedBand))
+                                      .future);
+                                case LeaderboardMode.marathon:
+                                  ref.invalidate(challengeEntriesProvider(
+                                      (mode: 'marathon', band: selectedBand)));
+                                  await ref.read(challengeEntriesProvider((
+                                    mode: 'marathon',
+                                    band: selectedBand
+                                  )).future);
+                                case LeaderboardMode.allTime:
+                                  ref.invalidate(allTimeEntriesProvider);
+                                  await ref.read(allTimeEntriesProvider.future);
                               }
                             },
                             child: LeaderboardListView(
@@ -155,29 +189,36 @@ class LeaderboardScreen extends ConsumerWidget {
   }
 }
 
-/// Toggle pill untuk memilih mode leaderboard (Harian / Semua Waktu).
+/// Toggle pill untuk memilih mode leaderboard (Harian / Speed / Maraton / Semua).
 class _ModeToggle extends ConsumerWidget {
   const _ModeToggle();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(leaderboardModeProvider);
+    const modes = LeaderboardMode.values;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SegmentedPill(
-        labels: const ['🏆  Harian', '⭐  Semua Waktu'],
-        selectedIndex: mode == LeaderboardMode.daily ? 0 : 1,
+        labels: modes.map((m) => m.label).toList(),
+        selectedIndex: modes.indexOf(mode),
         onSelected: (i) {
-          final nextMode =
-              i == 0 ? LeaderboardMode.daily : LeaderboardMode.allTime;
+          final nextMode = modes[i];
           ref.read(leaderboardModeProvider.notifier).state = nextMode;
-          if (nextMode == LeaderboardMode.allTime) {
-            ref.invalidate(allTimeEntriesProvider);
-          } else {
-            ref.read(dailySyncServiceProvider).syncPendingSubmissions();
-            final band = ref.read(leaderboardSelectedBandProvider);
-            ref.invalidate(leaderboardEntriesProvider(band));
+          final band = ref.read(leaderboardSelectedBandProvider);
+          switch (nextMode) {
+            case LeaderboardMode.daily:
+              ref.read(dailySyncServiceProvider).syncPendingSubmissions();
+              ref.invalidate(leaderboardEntriesProvider(band));
+            case LeaderboardMode.blitz:
+              ref.invalidate(
+                  challengeEntriesProvider((mode: 'blitz', band: band)));
+            case LeaderboardMode.marathon:
+              ref.invalidate(
+                  challengeEntriesProvider((mode: 'marathon', band: band)));
+            case LeaderboardMode.allTime:
+              ref.invalidate(allTimeEntriesProvider);
           }
         },
       ),
@@ -185,7 +226,7 @@ class _ModeToggle extends ConsumerWidget {
   }
 }
 
-/// Selector tab band horizontal — ChunkyButton sentral per item.
+/// Selector tab band horizontal â€” ChunkyButton sentral per item.
 class _BandTabsSelector extends ConsumerWidget {
   const _BandTabsSelector();
 
@@ -269,152 +310,158 @@ class LeaderboardLockedView extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: ChunkyButton(
-                  onPressed: () => context.go('/'),
-                  backgroundColor: AppTheme.colorVanillaCard,
-                  borderColor: AppTheme.darkBorder,
-                  shadowColor: AppTheme.darkBorder,
-                  padding: const EdgeInsets.all(10),
-                  child: const Icon(
-                    AppIcons.back,
-                    size: 20,
-                    color: AppTheme.colorWoodDark,
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: ChunkyButton(
+                    onPressed: () => context.go('/'),
+                    backgroundColor: AppTheme.colorVanillaCard,
+                    borderColor: AppTheme.darkBorder,
+                    shadowColor: AppTheme.darkBorder,
+                    padding: const EdgeInsets.all(10),
+                    child: const Icon(
+                      AppIcons.back,
+                      size: 20,
+                      color: AppTheme.colorWoodDark,
+                    ),
                   ),
                 ),
-              ),
-              const Spacer(),
-              ChunkyCard(
-                variant: ChunkyCardVariant.woodBoard,
-                padding: const EdgeInsets.fromLTRB(26, 40, 26, 28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      AppIcons.trophy,
-                      size: 54,
-                      color: Color(0xFFD48B00),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Papan Peringkat Terkunci',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.colorEspresso,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isGuest
-                          ? 'Hubungkan akunmu dan buat username unik untuk melihat ranking dan bersaing dengan pemain lain.'
-                          : 'Kamu perlu menetapkan username unik (minimal 4 karakter) sebelum dapat melihat dan bersaing di papan peringkat.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.colorTaupe,
-                            fontWeight: FontWeight.w600,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    if (isGuest) ...[
-                      ChunkyButton(
-                        onPressed: () async {
-                          final res = await ref
-                              .read(accountStatusProvider.notifier)
-                              .signInWithGoogle();
-                          if (res is RepoSuccess<AccountState> && context.mounted) {
-                            await handlePostSignInFlow(context, ref, accountState: res.value);
-                          }
-                        },
-                        backgroundColor: AppTheme.colorSage,
-                        borderColor: const Color(0xFF43733A),
-                        shadowColor: const Color(0xFF43733A),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 20,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(AppIcons.profile, color: Colors.white, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Masuk dengan Google',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15,
-                              ),
+                const Spacer(),
+                ChunkyCard(
+                  variant: ChunkyCardVariant.woodBoard,
+                  padding: const EdgeInsets.fromLTRB(26, 40, 26, 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        AppIcons.trophy,
+                        size: 54,
+                        color: Color(0xFFD48B00),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Papan Peringkat Terkunci',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.colorEspresso,
                             ),
-                          ],
-                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 10),
-                      ChunkyButton(
-                        onPressed: () async {
-                          final res = await ref
-                              .read(accountStatusProvider.notifier)
-                              .signInAnonymously();
-                          if (res is RepoSuccess<AccountState> && context.mounted) {
-                            await handlePostSignInFlow(context, ref, accountState: res.value);
-                          }
-                        },
-                        backgroundColor: AppTheme.colorWoodMedium,
-                        borderColor: AppTheme.colorWoodDark,
-                        shadowColor: AppTheme.colorWoodDark,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 20,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(AppIcons.cloudSync, color: Colors.white, size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              'Masuk Cepat & Buat Username',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isGuest
+                            ? 'Hubungkan akunmu dan buat username unik untuk melihat ranking dan bersaing dengan pemain lain.'
+                            : 'Kamu perlu menetapkan username unik (minimal 4 karakter) sebelum dapat melihat dan bersaing di papan peringkat.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.colorTaupe,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
-                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ] else ...[
-                      ChunkyButton(
-                        onPressed: () => showSetUsernameDialog(context),
-                        backgroundColor: AppTheme.colorSage,
-                        borderColor: const Color(0xFF43733A),
-                        shadowColor: const Color(0xFF43733A),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 24,
-                        ),
-                        child: const Text(
-                          'Buat Username Sekarang',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                      const SizedBox(height: 24),
+                      if (isGuest) ...[
+                        ChunkyButton(
+                          onPressed: () async {
+                            final res = await ref
+                                .read(accountStatusProvider.notifier)
+                                .signInWithGoogle();
+                            if (res is RepoSuccess<AccountState> &&
+                                context.mounted) {
+                              await handlePostSignInFlow(context, ref,
+                                  accountState: res.value);
+                            }
+                          },
+                          backgroundColor: AppTheme.colorSage,
+                          borderColor: const Color(0xFF43733A),
+                          shadowColor: const Color(0xFF43733A),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 20,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(AppIcons.profile,
+                                  color: Colors.white, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Masuk dengan Google',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        ChunkyButton(
+                          onPressed: () async {
+                            final res = await ref
+                                .read(accountStatusProvider.notifier)
+                                .signInAnonymously();
+                            if (res is RepoSuccess<AccountState> &&
+                                context.mounted) {
+                              await handlePostSignInFlow(context, ref,
+                                  accountState: res.value);
+                            }
+                          },
+                          backgroundColor: AppTheme.colorWoodMedium,
+                          borderColor: AppTheme.colorWoodDark,
+                          shadowColor: AppTheme.colorWoodDark,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 20,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(AppIcons.cloudSync,
+                                  color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Masuk Cepat & Buat Username',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        ChunkyButton(
+                          onPressed: () => showSetUsernameDialog(context),
+                          backgroundColor: AppTheme.colorSage,
+                          borderColor: const Color(0xFF43733A),
+                          shadowColor: const Color(0xFF43733A),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 24,
+                          ),
+                          child: const Text(
+                            'Buat Username Sekarang',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              const Spacer(),
-            ],
+                const Spacer(),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 /// Loading view
@@ -445,7 +492,8 @@ class LeaderboardErrorView extends StatelessWidget {
     final message = error != null
         ? FirebaseErrorMapper.map(
             error!,
-            defaultMessage: 'Gagal memuat papan peringkat. Silakan periksa koneksi atau coba lagi nanti.',
+            defaultMessage:
+                'Gagal memuat papan peringkat. Silakan periksa koneksi atau coba lagi nanti.',
           )
         : 'Periksa koneksi internetmu dan coba kembali.';
 
@@ -484,7 +532,8 @@ class LeaderboardErrorView extends StatelessWidget {
               backgroundColor: AppTheme.colorWoodMedium,
               borderColor: AppTheme.colorWoodDark,
               shadowColor: AppTheme.colorWoodDark,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: const Text(
                 'Coba Lagi',
                 style: TextStyle(
@@ -501,7 +550,7 @@ class LeaderboardErrorView extends StatelessWidget {
   }
 }
 
-/// Tampilan daftar skor leaderboard — mendukung mode daily & all-time dengan Podium 3 Besar
+/// Tampilan daftar skor leaderboard â€” mendukung mode daily, blitz, marathon, dan all-time dengan Podium 3 Besar
 class LeaderboardListView extends StatelessWidget {
   const LeaderboardListView({
     super.key,
@@ -517,12 +566,24 @@ class LeaderboardListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      final emptyTitle = mode == LeaderboardMode.allTime
-          ? 'Belum Ada Pemain'
-          : 'Belum Ada Skor Hari Ini';
-      final emptySubtitle = mode == LeaderboardMode.allTime
-          ? 'Selesaikan tantangan harian untuk mencatat rekor skor!'
-          : 'Jadilah petualang pertama yang menaklukkan tantangan ini!';
+      final (emptyTitle, emptySubtitle) = switch (mode) {
+        LeaderboardMode.daily => (
+            'Belum Ada Skor Hari Ini',
+            'Jadilah petualang pertama yang menaklukkan tantangan hari ini!',
+          ),
+        LeaderboardMode.blitz => (
+            'Belum Ada Rekor Speed Blitz',
+            'Pecahkan rekor kecepatan 60 detik di zona ini!',
+          ),
+        LeaderboardMode.marathon => (
+            'Belum Ada Rekor Math Marathon',
+            'Buktikan ketahanan fokusmu dan raih streak tertinggi!',
+          ),
+        LeaderboardMode.allTime => (
+            'Belum Ada Pemain',
+            'Selesaikan tantangan untuk mencatat rekor skor all-time!',
+          ),
+      };
 
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
@@ -551,7 +612,8 @@ class LeaderboardListView extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       emptySubtitle,
-                      style: const TextStyle(color: AppTheme.colorTaupe, fontSize: 13),
+                      style: const TextStyle(
+                          color: AppTheme.colorTaupe, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -631,17 +693,27 @@ class _LeaderboardRowItem extends StatelessWidget {
     };
 
     // Skor yang ditampilkan berbeda per mode
-    final scoreLabel = mode == LeaderboardMode.allTime
-        ? '${entry.totalScore ?? 0} pts'
-        : '${entry.correctCount}/12';
-    final scoreColor = mode == LeaderboardMode.allTime
-        ? AppTheme.colorCoral
-        : AppTheme.colorSage;
+    final scoreLabel = switch (mode) {
+      LeaderboardMode.daily => '${entry.correctCount}/12',
+      LeaderboardMode.blitz => '${entry.totalScore} pts',
+      LeaderboardMode.marathon => '${entry.totalScore} pts',
+      LeaderboardMode.allTime => '${entry.totalScore} pts',
+    };
+
+    final scoreColor = switch (mode) {
+      LeaderboardMode.daily => AppTheme.colorSage,
+      LeaderboardMode.blitz => AppTheme.colorCoral,
+      LeaderboardMode.marathon => const Color(0xFFE65100),
+      LeaderboardMode.allTime => AppTheme.colorCoral,
+    };
 
     // Sub-info berbeda per mode
-    final subInfo = mode == LeaderboardMode.allTime
-        ? 'Total Skor'
-        : 'Waktu: ${entry.formattedTime}';
+    final subInfo = switch (mode) {
+      LeaderboardMode.daily => 'Waktu: ${entry.formattedTime}',
+      LeaderboardMode.blitz => '\u{26A1} ${entry.correctCount} Soal (60s)',
+      LeaderboardMode.marathon => '\u{1F525} Streak ${entry.streak ?? 0} Soal',
+      LeaderboardMode.allTime => 'Total Skor',
+    };
 
     return GestureDetector(
       onTap: onTap,
@@ -805,4 +877,3 @@ class _LeaderboardRowItem extends StatelessWidget {
     );
   }
 }
-

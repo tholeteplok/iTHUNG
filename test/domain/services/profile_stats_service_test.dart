@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mathmo_app/domain/models/mastery_record.dart';
 import 'package:mathmo_app/domain/models/session_result.dart';
 import 'package:mathmo_app/domain/services/profile_stats_service.dart';

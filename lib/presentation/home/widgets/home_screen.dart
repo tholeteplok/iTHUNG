@@ -13,7 +13,7 @@ import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/update_dialog.dart';
 import '../providers/level_stars_provider.dart';
 import '../providers/player_profile_provider.dart';
-import 'avatar_callout_pin.dart';
+import 'mascot_node_character.dart';
 import 'floating_bottom_dock.dart';
 import 'level_node.dart';
 import 'milestone_chest_node.dart';
@@ -562,17 +562,18 @@ class _StageCanvasView extends StatelessWidget {
           ),
         ),
 
-        // Avatar Callout Pin ("Mulai di Sini!") di atas active node
+        // Karakter Maskot 2D Full-body & Balon Ucapan di atas active node
         if (status == LevelNodeStatus.active)
           Positioned(
-            left: pos.dx - 100,
-            top: pos.dy - (98 * scale).clamp(85.0, 118.0),
-            width: 200,
+            left: pos.dx - 140,
+            top: pos.dy - (172 * scale).clamp(140.0, 206.0),
+            width: 280,
             child: Center(
-              child: AvatarCalloutPin(
+              child: MascotNodeCharacter(
+                level: level,
+                scale: scale,
                 avatarId: avatarId,
                 avatarLetter: avatarLetter,
-                accentColor: AppTheme.colorSage,
                 onTap: () => context.go('/game/$level'),
               ),
             ),

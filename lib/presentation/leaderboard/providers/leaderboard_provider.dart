@@ -8,8 +8,42 @@ import '../../game/providers/level_band_theme_provider.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../profile/providers/account_status_provider.dart';
 
-/// Mode tampilan leaderboard: harian (daily) atau semua waktu (all-time).
-enum LeaderboardMode { daily, allTime }
+/// Mode tampilan papan peringkat: harian (daily), speed blitz (blitz), math marathon (marathon), atau semua waktu (allTime).
+enum LeaderboardMode {
+  daily,
+  blitz,
+  marathon,
+  allTime;
+
+  /// Label ringkas untuk tampilan SegmentedPill (ramah layar mobile).
+  String get label {
+    switch (this) {
+      case LeaderboardMode.daily:
+        return 'Harian';
+      case LeaderboardMode.blitz:
+        return 'Speed';
+      case LeaderboardMode.marathon:
+        return 'Maraton';
+      case LeaderboardMode.allTime:
+        return 'Semua';
+    }
+  }
+
+  /// Menentukan apakah mode ini membutuhkan filter pemilihan band level.
+  bool get hasBandSelector => this != LeaderboardMode.allTime;
+
+  /// Menentukan string mode internal untuk query database/repositori.
+  String? get modeKey {
+    switch (this) {
+      case LeaderboardMode.blitz:
+        return 'blitz';
+      case LeaderboardMode.marathon:
+        return 'marathon';
+      default:
+        return null;
+    }
+  }
+}
 
 /// Provider mode yang sedang aktif di layar leaderboard.
 final leaderboardModeProvider = StateProvider<LeaderboardMode>((ref) {
@@ -24,7 +58,7 @@ final leaderboardSelectedBandProvider = StateProvider<String>((ref) {
 });
 
 /// Notifier untuk memuat dan mengelola entri leaderboard harian per band.
-/// Mendukung update optimistik instan (§5.2) tanpa jeda jaringan.
+/// Mendukung update optimistik instan (Â§5.2) tanpa jeda jaringan.
 class LeaderboardEntriesNotifier
     extends FamilyAsyncNotifier<List<LeaderboardEntry>, String> {
   @override
@@ -48,8 +82,6 @@ class LeaderboardEntriesNotifier
   }
 
   /// Menambahkan entri pemain saat ini secara optimistik ke daftar leaderboard.
-  /// Otomatis mengurutkan berdasarkan skor tertinggi & waktu tercepat,
-  /// serta menghitung peringkat virtual lokal (1..N).
   void addOptimisticEntry(LeaderboardEntry entry) {
     final current = state.valueOrNull ?? [];
     final filtered = current.where(
@@ -98,6 +130,38 @@ final leaderboardEntriesProvider = AsyncNotifierProvider.family<
   LeaderboardEntriesNotifier.new,
 );
 
+/// Notifier untuk memuat entri tantangan khusus (speed blitz / math marathon).
+class ChallengeEntriesNotifier extends FamilyAsyncNotifier<
+    List<LeaderboardEntry>, ({String mode, String band})> {
+  @override
+  FutureOr<List<LeaderboardEntry>> build(
+      ({String mode, String band}) arg) async {
+    final repo = ref.watch(leaderboardRepositoryProvider);
+    final accountState = ref.watch(accountStatusProvider).valueOrNull;
+    final username = accountState?.username;
+
+    final result = await repo.fetchChallengeLeaderboard(
+      mode: arg.mode,
+      band: arg.band,
+      limit: 50,
+      currentPlayerUsername: username,
+    );
+
+    return switch (result) {
+      RepoSuccess(:final value) => value,
+      RepoFailure(:final reason) => throw Exception(reason),
+    };
+  }
+}
+
+/// Provider untuk memuat daftar entri leaderboard tantangan (blitz / marathon) per band.
+final challengeEntriesProvider = AsyncNotifierProvider.family<
+    ChallengeEntriesNotifier,
+    List<LeaderboardEntry>,
+    ({String mode, String band})>(
+  ChallengeEntriesNotifier.new,
+);
+
 /// Notifier untuk memuat dan mengelola entri leaderboard all-time (total skor akumulatif).
 class AllTimeEntriesNotifier extends AsyncNotifier<List<LeaderboardEntry>> {
   @override
@@ -126,7 +190,8 @@ class AllTimeEntriesNotifier extends AsyncNotifier<List<LeaderboardEntry>> {
     final current = state.valueOrNull ?? [];
     final lowerUser = username.toLowerCase();
 
-    final existingIndex = current.indexWhere((e) => e.username.toLowerCase() == lowerUser);
+    final existingIndex =
+        current.indexWhere((e) => e.username.toLowerCase() == lowerUser);
 
     final List<LeaderboardEntry> list;
     if (existingIndex != -1) {
@@ -177,15 +242,36 @@ final allTimeEntriesProvider =
   AllTimeEntriesNotifier.new,
 );
 
-/// Provider untuk mengambil posisi pemain sendiri jika di luar Top-N (khusus mode harian).
-final playerLeaderboardEntryProvider = FutureProvider.autoDispose.family<LeaderboardEntry?, String>((ref, band) async {
+/// Provider untuk mengambil posisi pemain sendiri jika di luar Top-N (mode harian).
+final playerLeaderboardEntryProvider = FutureProvider.autoDispose
+    .family<LeaderboardEntry?, String>((ref, band) async {
   final repo = ref.watch(leaderboardRepositoryProvider);
   final accountState = ref.watch(accountStatusProvider).valueOrNull;
   final username = accountState?.username;
   if (username == null || username.isEmpty) return null;
 
   final now = DateTime.now();
-  final result = await repo.getPlayerEntry(band: band, date: now, username: username);
+  final result =
+      await repo.getPlayerEntry(band: band, date: now, username: username);
+  return switch (result) {
+    RepoSuccess(:final value) => value,
+    RepoFailure() => null,
+  };
+});
+
+/// Provider untuk mengambil posisi pemain sendiri jika di luar Top-N (mode tantangan blitz / marathon).
+final playerChallengeEntryProvider = FutureProvider.autoDispose
+    .family<LeaderboardEntry?, ({String mode, String band})>((ref, arg) async {
+  final repo = ref.watch(leaderboardRepositoryProvider);
+  final accountState = ref.watch(accountStatusProvider).valueOrNull;
+  final username = accountState?.username;
+  if (username == null || username.isEmpty) return null;
+
+  final result = await repo.getPlayerChallengeEntry(
+    mode: arg.mode,
+    band: arg.band,
+    username: username,
+  );
   return switch (result) {
     RepoSuccess(:final value) => value,
     RepoFailure() => null,

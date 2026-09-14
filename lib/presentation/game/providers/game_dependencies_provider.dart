@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/local/hive_audio_settings_repository.dart';
+import '../../../data/local/hive_challenge_score_repository.dart';
 import '../../../data/local/hive_daily_challenge_repository.dart';
 import '../../../data/local/hive_event_log.dart';
 import '../../../domain/repositories/audio_settings_repository.dart';
+import '../../../domain/repositories/challenge_score_repository.dart';
 import '../../../data/local/hive_level_score_repository.dart';
 import '../../../data/local/hive_mastery_repository.dart';
 import '../../../data/local/hive_player_repository.dart';
@@ -45,6 +47,11 @@ final dailyChallengeRepositoryProvider = Provider<DailyChallengeRepository>((
 
 final levelScoreRepositoryProvider = Provider<LevelScoreRepository>((ref) {
   return HiveLevelScoreRepository();
+});
+
+final challengeScoreRepositoryProvider =
+    Provider<ChallengeScoreRepository>((ref) {
+  return HiveChallengeScoreRepository();
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

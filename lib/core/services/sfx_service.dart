@@ -17,15 +17,26 @@ enum SfxType {
 
   /// Sentuhan tombol Neobrutalis (tactile pop click).
   tap,
+
+  /// Detak jam reguler 10 detik terakhir tantangan (wood clock tick).
+  timerTick,
+
+  /// Detak peringatan mendesak 3 detik terakhir tantangan (high alert tick).
+  timerWarning,
 }
 
 /// Service terpusat untuk memutar Sound Effects (SFX) berlatensi rendah secara instan.
 ///
 /// Beroperasi terpisah dari [BgmService] agar pemutaran efek suara tidak memotong musik latar.
 class SfxService {
-  SfxService({AudioPlayer? player}) : _player = player ?? AudioPlayer();
+  SfxService({
+    AudioPlayer? player,
+    AudioPlayer? timerPlayer,
+  })  : _player = player ?? AudioPlayer(),
+        _timerPlayer = timerPlayer ?? AudioPlayer();
 
   final AudioPlayer _player;
+  final AudioPlayer _timerPlayer;
   bool _isMuted = false;
   double _volume = 1.0;
 
@@ -38,6 +49,8 @@ class SfxService {
     SfxType.levelUp: 'sounds/sfx/level_up.wav',
     SfxType.chestOpen: 'sounds/sfx/chest_open.wav',
     SfxType.tap: 'sounds/sfx/tap.wav',
+    SfxType.timerTick: 'sounds/sfx/timer_tick.wav',
+    SfxType.timerWarning: 'sounds/sfx/timer_warning.wav',
   };
 
   /// Memutar sound effect sesuai [type] jika tidak dalam status mute.
@@ -47,10 +60,14 @@ class SfxService {
     final relativePath = _sfxPaths[type];
     if (relativePath == null) return;
 
+    final isTimerSfx =
+        type == SfxType.timerTick || type == SfxType.timerWarning;
+    final activePlayer = isTimerSfx ? _timerPlayer : _player;
+
     try {
-      await _player.stop();
-      await _player.setVolume(_volume);
-      await _player.play(
+      await activePlayer.stop();
+      await activePlayer.setVolume(_volume);
+      await activePlayer.play(
         AssetSource(relativePath),
         mode: PlayerMode.lowLatency,
       );
@@ -70,6 +87,7 @@ class SfxService {
     if (_isMuted) {
       try {
         await _player.stop();
+        await _timerPlayer.stop();
       } catch (e) {
         dev.log('SfxService stop error on mute: ', error: e, name: 'SfxService');
       }
@@ -81,6 +99,7 @@ class SfxService {
     _volume = volume.clamp(0.0, 1.0);
     try {
       await _player.setVolume(_volume);
+      await _timerPlayer.setVolume(_volume);
     } catch (e) {
       dev.log('SfxService setVolume error: ', error: e, name: 'SfxService');
     }
@@ -89,5 +108,6 @@ class SfxService {
   /// Membersihkan resource audio player.
   void dispose() {
     _player.dispose();
+    _timerPlayer.dispose();
   }
 }
