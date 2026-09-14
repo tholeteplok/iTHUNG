@@ -138,6 +138,18 @@ class AppAssets {
     return match ?? avatarId;
   }
 
+  /// Pose Karakter 2D Full-body Avatar 7 (Burung Cendekia)
+  static const String characterAvatar7Idle = 'assets/images/characters/avatar_7_idle.png';
+  static const String characterAvatar7Think = 'assets/images/characters/avatar_7_think.png';
+  static const String characterAvatar7Cheer = 'assets/images/characters/avatar_7_cheer.png';
+
+  /// Daftar pose siklus animasi Avatar 7
+  static const List<String> characterAvatar7Poses = [
+    characterAvatar7Idle,
+    characterAvatar7Think,
+    characterAvatar7Cheer,
+  ];
+
   // Legacy (dijaga agar backward-compatible bila ada referensi lama)
   static const String woodTokenLocked = 'assets/images/wood_token_locked.png';
   static const String woodTokenChecked = 'assets/images/wood_token_checked.png';

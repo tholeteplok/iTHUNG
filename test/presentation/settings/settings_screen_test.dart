@@ -200,7 +200,9 @@ void main() {
       expect(openedLinks, contains(DeveloperContact.whatsappUrl));
     });
 
-    testWidgets('audio volume sliders are rendered when unmuted', (tester) async {
+    testWidgets('audio toggle switches are rendered and no sliders exist', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -208,8 +210,9 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      final sliders = find.byType(Slider);
-      expect(sliders, findsWidgets);
+      expect(find.byKey(const Key('switch_bgm')), findsOneWidget);
+      expect(find.byKey(const Key('switch_sfx')), findsOneWidget);
+      expect(find.byType(Slider), findsNothing);
     });
   });
 }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/zone_constants.dart';
+import '../../../core/services/sfx_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/challenge_score_record.dart';
@@ -21,6 +22,7 @@ import '../../game/widgets/question_display.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../leaderboard/providers/leaderboard_provider.dart';
 import '../../profile/providers/account_status_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/chunky_button.dart';
 import '../../shared/widgets/chunky_card.dart';
@@ -83,8 +85,10 @@ class _MathMarathonScreenState extends ConsumerState<MathMarathonScreen> {
     if (_isFeedback || _isFinished || _currentDistractors == null) return;
 
     final isCorrect = _currentDistractors!.shuffledIndices[slotIndex] == 0;
+    final sfx = ref.read(sfxServiceProvider);
 
     if (isCorrect) {
+      sfx.play(SfxType.correct);
       _streak++;
 
       if (_streak % 5 == 0 && _currentEffectiveLevel < 60) {
@@ -107,6 +111,7 @@ class _MathMarathonScreenState extends ConsumerState<MathMarathonScreen> {
         _generateNextQuestion();
       });
     } else {
+      sfx.play(SfxType.wrong);
       _gameOverReason = 'Jawaban Kurang Tepat';
       setState(() {
         _isFeedback = true;
@@ -124,6 +129,7 @@ class _MathMarathonScreenState extends ConsumerState<MathMarathonScreen> {
   void _handleQuestionTimeout() {
     if (_isFeedback || _isFinished) return;
 
+    ref.read(sfxServiceProvider).play(SfxType.wrong);
     _gameOverReason = 'Kehabisan Waktu';
     setState(() {
       _isFeedback = true;
@@ -233,6 +239,10 @@ class _MathMarathonScreenState extends ConsumerState<MathMarathonScreen> {
   }
 
   void _showResultDialog() {
+    if (_isNewRecord) {
+      ref.read(sfxServiceProvider).play(SfxType.levelUp);
+    }
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
