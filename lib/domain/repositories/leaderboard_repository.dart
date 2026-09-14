@@ -68,4 +68,31 @@ abstract class LeaderboardRepository {
   /// Mengambil data profil publik pemain berdasarkan [username] dari /profiles di Firestore.
   /// Mengembalikan null jika profil tidak ditemukan.
   Future<RepoResult<PublicProfile?>> fetchPublicProfile(String username);
+
+  /// Mengambil daftar top-N entri papan peringkat tantangan khusus (speed blitz / math marathon)
+  /// untuk mode dan band tertentu.
+  Future<RepoResult<List<LeaderboardEntry>>> fetchChallengeLeaderboard({
+    required String mode,
+    required String band,
+    int limit = 50,
+    String? currentPlayerUsername,
+  });
+
+  /// Mengambil entri posisi pemain tertentu pada mode tantangan dan band jika tidak masuk di top-N.
+  Future<RepoResult<LeaderboardEntry?>> getPlayerChallengeEntry({
+    required String mode,
+    required String band,
+    required String username,
+  });
+
+  /// Mengunggah skor rekor tantangan baru ke papan peringkat cloud mode & band.
+  Future<RepoResult<void>> submitChallengeScore({
+    required String mode,
+    required String band,
+    required int score,
+    int? correctCount,
+    int? streak,
+    required String username,
+    String? avatarId,
+  });
 }

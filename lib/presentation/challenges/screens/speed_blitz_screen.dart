@@ -200,7 +200,19 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
                     challengePayload.isNotEmpty ? challengePayload : null,
               );
 
+          final correctCount = _answerResults.where((r) => r).length;
+          await ref.read(leaderboardRepositoryProvider).submitChallengeScore(
+                mode: 'blitz',
+                band: bandId,
+                score: attemptResult.record.bestScore,
+                correctCount: correctCount,
+                username: username,
+                avatarId: freshProfile?.avatarId,
+              );
+
           ref.invalidate(allTimeEntriesProvider);
+          ref.invalidate(
+              challengeEntriesProvider((mode: 'blitz', band: bandId)));
         }
       } catch (_) {
         // Abaikan error jaringan

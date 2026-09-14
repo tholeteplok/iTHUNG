@@ -27,6 +27,15 @@ class FakeLeaderboardEntriesNotifier extends LeaderboardEntriesNotifier {
   FutureOr<List<LeaderboardEntry>> build(String arg) => _entries;
 }
 
+class FakeChallengeEntriesNotifier extends ChallengeEntriesNotifier {
+  FakeChallengeEntriesNotifier(this._entries);
+  final List<LeaderboardEntry> _entries;
+
+  @override
+  FutureOr<List<LeaderboardEntry>> build(({String band, String mode}) arg) =>
+      _entries;
+}
+
 class FakeAllTimeEntriesNotifier extends AllTimeEntriesNotifier {
   FakeAllTimeEntriesNotifier(this._entries);
   final List<LeaderboardEntry> _entries;
@@ -36,12 +45,26 @@ class FakeAllTimeEntriesNotifier extends AllTimeEntriesNotifier {
 }
 
 void main() {
-  testWidgets('LeaderboardScreen renders locked view when user is guest', (tester) async {
+  const testBand = LevelBand(
+    id: 'basic',
+    levelStart: 6,
+    levelEnd: 15,
+    operations: [Operation.add],
+    digitRange: '1-digit',
+    timerBaseSec: 6.0,
+    canvasColorHex: '#EAF3DE',
+    canvasColorEndHex: '#DCEACB',
+    accentColorHex: '#639922',
+  );
+
+  testWidgets('LeaderboardScreen renders locked view when user is guest',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           accountStatusProvider.overrideWith(
-            () => FakeAccountStatusNotifier(const AccountState(status: AccountStatus.guest)),
+            () => FakeAccountStatusNotifier(
+                const AccountState(status: AccountStatus.guest)),
           ),
         ],
         child: const MaterialApp(
@@ -56,7 +79,9 @@ void main() {
     expect(find.text('Masuk dengan Google'), findsOneWidget);
   });
 
-  testWidgets('LeaderboardScreen renders entries and band tabs when logged in', (tester) async {
+  testWidgets(
+      'LeaderboardScreen renders daily entries and band tabs when logged in',
+      (tester) async {
     const mockEntries = [
       LeaderboardEntry(
         rank: 1,
@@ -73,18 +98,6 @@ void main() {
         isCurrentPlayer: true,
       ),
     ];
-
-    const testBand = LevelBand(
-      id: 'basic',
-      levelStart: 6,
-      levelEnd: 15,
-      operations: [Operation.add],
-      digitRange: '1-digit',
-      timerBaseSec: 6.0,
-      canvasColorHex: '#EAF3DE',
-      canvasColorEndHex: '#DCEACB',
-      accentColorHex: '#639922',
-    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -121,12 +134,126 @@ void main() {
     expect(find.text('12/12'), findsOneWidget);
     expect(find.text('11/12'), findsOneWidget);
     expect(find.text('Kamu'), findsOneWidget);
-    expect(find.text('🏆  Harian'), findsOneWidget);
-    expect(find.text('⭐  Semua Waktu'), findsOneWidget);
+    expect(find.text('Harian'), findsOneWidget);
+    expect(find.text('Speed'), findsOneWidget);
+    expect(find.text('Maraton'), findsOneWidget);
+    expect(find.text('Semua'), findsOneWidget);
     expect(find.text('Golden Sun Canyon'), findsOneWidget);
   });
 
-  testWidgets('LeaderboardScreen renders all-time entries and hides band tabs in allTime mode', (tester) async {
+  testWidgets('LeaderboardScreen renders blitz entries in blitz mode',
+      (tester) async {
+    const mockBlitzEntries = [
+      LeaderboardEntry(
+        rank: 1,
+        username: 'speed_king',
+        correctCount: 25,
+        totalTimeMs: 60000,
+        totalScore: 3500,
+        isCurrentPlayer: false,
+      ),
+      LeaderboardEntry(
+        rank: 2,
+        username: 'my_user_test',
+        correctCount: 20,
+        totalTimeMs: 60000,
+        totalScore: 2800,
+        isCurrentPlayer: true,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          accountStatusProvider.overrideWith(
+            () => FakeAccountStatusNotifier(
+              const AccountState(
+                status: AccountStatus.linked,
+                userId: 'user_123',
+                username: 'my_user_test',
+              ),
+            ),
+          ),
+          levelBandsConfigProvider.overrideWith(
+            (ref) async => const LevelBandsConfig([testBand]),
+          ),
+          leaderboardModeProvider.overrideWith((ref) => LeaderboardMode.blitz),
+          leaderboardSelectedBandProvider.overrideWith((ref) => 'basic'),
+          challengeEntriesProvider.overrideWith(
+            () => FakeChallengeEntriesNotifier(mockBlitzEntries),
+          ),
+        ],
+        child: const MaterialApp(
+          home: LeaderboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Papan Peringkat'), findsOneWidget);
+    expect(find.byType(LeaderboardPodium), findsOneWidget);
+    expect(find.text('@speed_king'), findsOneWidget);
+    expect(find.text('@my_user_test'), findsOneWidget);
+    expect(find.text('3500 pts'), findsOneWidget);
+    expect(find.text('2800 pts'), findsOneWidget);
+    expect(find.text('Golden Sun Canyon'), findsOneWidget);
+  });
+
+  testWidgets('LeaderboardScreen renders marathon entries in marathon mode',
+      (tester) async {
+    const mockMarathonEntries = [
+      LeaderboardEntry(
+        rank: 1,
+        username: 'endurance_pro',
+        correctCount: 0,
+        totalTimeMs: 0,
+        totalScore: 4200,
+        streak: 35,
+        isCurrentPlayer: false,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          accountStatusProvider.overrideWith(
+            () => FakeAccountStatusNotifier(
+              const AccountState(
+                status: AccountStatus.linked,
+                userId: 'user_123',
+                username: 'my_user_test',
+              ),
+            ),
+          ),
+          levelBandsConfigProvider.overrideWith(
+            (ref) async => const LevelBandsConfig([testBand]),
+          ),
+          leaderboardModeProvider
+              .overrideWith((ref) => LeaderboardMode.marathon),
+          leaderboardSelectedBandProvider.overrideWith((ref) => 'basic'),
+          challengeEntriesProvider.overrideWith(
+            () => FakeChallengeEntriesNotifier(mockMarathonEntries),
+          ),
+        ],
+        child: const MaterialApp(
+          home: LeaderboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Papan Peringkat'), findsOneWidget);
+    expect(find.byType(LeaderboardPodium), findsOneWidget);
+    expect(find.text('@endurance_pro'), findsOneWidget);
+    expect(find.text('4200 pts'), findsOneWidget);
+    expect(find.text('Golden Sun Canyon'), findsOneWidget);
+  });
+
+  testWidgets(
+      'LeaderboardScreen renders all-time entries and hides band tabs in allTime mode',
+      (tester) async {
     const mockAllTimeEntries = [
       LeaderboardEntry(
         rank: 1,
@@ -145,18 +272,6 @@ void main() {
         isCurrentPlayer: true,
       ),
     ];
-
-    const testBand = LevelBand(
-      id: 'basic',
-      levelStart: 6,
-      levelEnd: 15,
-      operations: [Operation.add],
-      digitRange: '1-digit',
-      timerBaseSec: 6.0,
-      canvasColorHex: '#EAF3DE',
-      canvasColorEndHex: '#DCEACB',
-      accentColorHex: '#639922',
-    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -198,7 +313,9 @@ void main() {
   });
 
   group('Optimistic update tests', () {
-    test('LeaderboardEntriesNotifier adds and rollbacks optimistic entry with virtual rank', () async {
+    test(
+        'LeaderboardEntriesNotifier adds and rollbacks optimistic entry with virtual rank',
+        () async {
       final container = ProviderContainer(
         overrides: [
           leaderboardEntriesProvider.overrideWith(
@@ -223,13 +340,15 @@ void main() {
       );
 
       // Initial read
-      final initial = await container.read(leaderboardEntriesProvider('basic').future);
+      final initial =
+          await container.read(leaderboardEntriesProvider('basic').future);
       expect(initial.length, 2);
       expect(initial[0].username, 'alice');
       expect(initial[1].username, 'bob');
 
       // Add optimistic entry that beats alice
-      final notifier = container.read(leaderboardEntriesProvider('basic').notifier);
+      final notifier =
+          container.read(leaderboardEntriesProvider('basic').notifier);
       notifier.addOptimisticEntry(
         const LeaderboardEntry(
           rank: 1,
@@ -240,7 +359,8 @@ void main() {
         ),
       );
 
-      final optimistic = container.read(leaderboardEntriesProvider('basic')).value!;
+      final optimistic =
+          container.read(leaderboardEntriesProvider('basic')).value!;
       expect(optimistic.length, 3);
       expect(optimistic[0].username, 'player_me');
       expect(optimistic[0].rank, 1);
@@ -251,7 +371,8 @@ void main() {
 
       // Rollback
       notifier.rollbackOptimisticEntry('player_me');
-      final rolledBack = container.read(leaderboardEntriesProvider('basic')).value!;
+      final rolledBack =
+          container.read(leaderboardEntriesProvider('basic')).value!;
       expect(rolledBack.length, 2);
       expect(rolledBack[0].username, 'alice');
       expect(rolledBack[0].rank, 1);
@@ -305,5 +426,3 @@ void main() {
     });
   });
 }
-
-

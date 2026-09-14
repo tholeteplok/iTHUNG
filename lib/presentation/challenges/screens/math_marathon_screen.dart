@@ -209,7 +209,18 @@ class _MathMarathonScreenState extends ConsumerState<MathMarathonScreen> {
                     challengePayload.isNotEmpty ? challengePayload : null,
               );
 
+          await ref.read(leaderboardRepositoryProvider).submitChallengeScore(
+                mode: 'marathon',
+                band: bandId,
+                score: attemptResult.record.bestScore,
+                streak: _streak,
+                username: username,
+                avatarId: freshProfile?.avatarId,
+              );
+
           ref.invalidate(allTimeEntriesProvider);
+          ref.invalidate(
+              challengeEntriesProvider((mode: 'marathon', band: bandId)));
         }
       } catch (_) {
         // Abaikan error jaringan

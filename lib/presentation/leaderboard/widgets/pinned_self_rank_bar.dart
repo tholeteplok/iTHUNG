@@ -21,16 +21,26 @@ class PinnedSelfRankBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scoreLabel = mode == LeaderboardMode.allTime
-        ? '${entry.totalScore ?? 0} pts'
-        : '${entry.correctCount}/12';
-    final scoreColor = mode == LeaderboardMode.allTime
-        ? AppTheme.colorCoral
-        : AppTheme.colorSage;
+    final scoreLabel = switch (mode) {
+      LeaderboardMode.daily => '${entry.correctCount}/12',
+      LeaderboardMode.blitz => '${entry.totalScore} pts',
+      LeaderboardMode.marathon => '${entry.totalScore} pts',
+      LeaderboardMode.allTime => '${entry.totalScore} pts',
+    };
 
-    final subInfo = mode == LeaderboardMode.allTime
-        ? 'Peringkat All-Time Kamu'
-        : 'Waktu: ${entry.formattedTime}';
+    final scoreColor = switch (mode) {
+      LeaderboardMode.daily => AppTheme.colorSage,
+      LeaderboardMode.blitz => AppTheme.colorCoral,
+      LeaderboardMode.marathon => const Color(0xFFE65100),
+      LeaderboardMode.allTime => AppTheme.colorCoral,
+    };
+
+    final subInfo = switch (mode) {
+      LeaderboardMode.daily => 'Waktu: ${entry.formattedTime}',
+      LeaderboardMode.blitz => '\u{26A1} ${entry.correctCount} Soal (60s)',
+      LeaderboardMode.marathon => '\u{1F525} Streak ${entry.streak ?? 0} Soal',
+      LeaderboardMode.allTime => 'Peringkat All-Time Kamu',
+    };
 
     return SafeArea(
       top: false,
