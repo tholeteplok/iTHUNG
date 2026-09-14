@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/zone_constants.dart';
+import '../../../core/services/sfx_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/challenge_score_record.dart';
@@ -20,6 +21,7 @@ import '../../game/widgets/question_display.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../leaderboard/providers/leaderboard_provider.dart';
 import '../../profile/providers/account_status_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/chunky_button.dart';
 import '../../shared/widgets/chunky_card.dart';
@@ -58,6 +60,7 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
   int _previousBestScore = 0;
   int _scoreDelta = 0;
   bool _isNewRecord = false;
+  int? _lastTickedSecond;
 
   @override
   void initState() {
@@ -65,7 +68,9 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
     _clockController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: _kTotalDurationSeconds),
-    )..addStatusListener((status) {
+    )
+      ..addListener(_onClockTick)
+      ..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
           _finishChallenge();
         }
@@ -75,8 +80,25 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
     _generateNextQuestion();
   }
 
+  void _onClockTick() {
+    if (!mounted || _isFinished) return;
+    final remaining = _secondsRemaining;
+
+    // Picu audio ketegangan di 10 detik terakhir (1x per detik)
+    if (remaining <= 10 && remaining > 0 && remaining != _lastTickedSecond) {
+      _lastTickedSecond = remaining;
+      final sfx = ref.read(sfxServiceProvider);
+      if (remaining <= 3) {
+        sfx.play(SfxType.timerWarning);
+      } else {
+        sfx.play(SfxType.timerTick);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _clockController.removeListener(_onClockTick);
     _clockController.dispose();
     super.dispose();
   }
@@ -111,6 +133,14 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
     final isCorrect = _currentDistractors!.shuffledIndices[slotIndex] == 0;
     _answerResults.add(isCorrect);
 
+    // Mainkan sound effect respons jawaban
+    final sfx = ref.read(sfxServiceProvider);
+    if (isCorrect) {
+      sfx.play(SfxType.correct);
+    } else {
+      sfx.play(SfxType.wrong);
+    }
+
     final profile = ref.read(playerProfileProvider).valueOrNull;
     final level = profile?.currentLevel ?? 1;
     final roundScore =
@@ -130,6 +160,8 @@ class _SpeedBlitzScreenState extends ConsumerState<SpeedBlitzScreen>
 
   Future<void> _finishChallenge() async {
     if (_isFinished) return;
+
+    _clockController.removeListener(_onClockTick);
 
     setState(() {
       _isFinished = true;
