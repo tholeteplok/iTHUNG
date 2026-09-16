@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,6 +21,7 @@ import java.security.MessageDigest
 class MainActivity : FlutterActivity() {
     private companion object {
         const val INSTALLER_CHANNEL = "com.tholeteplok.ithung/installer"
+        const val TAG = "MainActivity"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -35,6 +38,25 @@ class MainActivity : FlutterActivity() {
                         installApk(filePath, result)
                     } else {
                         result.error("INVALID_PATH", "File path cannot be null", null)
+                    }
+                }
+                "canRequestPackageInstalls" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        result.success(packageManager.canRequestPackageInstalls())
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "openInstallPermissionSettings" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                            data = Uri.parse("package:$packageName")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(settingsIntent)
+                        result.success(true)
+                    } else {
+                        result.success(true)
                     }
                 }
                 "checkSignatureMatch" -> {
@@ -73,22 +95,44 @@ class MainActivity : FlutterActivity() {
                 return
             }
 
+            // 1. Cek izin Install Unknown Apps di Android 8.0+ (Oreo, API 26+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!packageManager.canRequestPackageInstalls()) {
+                    Log.w(TAG, "Install permission not granted. Opening settings for package: $packageName")
+                    val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:$packageName")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(settingsIntent)
+                    result.error(
+                        "PERMISSION_REQUIRED",
+                        "Izin instalasi aplikasi tidak dikenal diperlukan. Pengaturan telah dibuka.",
+                        null
+                    )
+                    return
+                }
+            }
+
+            // 2. Buat content URI melalui FileProvider
             val apkUri = FileProvider.getUriForFile(
                 applicationContext,
                 "${applicationContext.packageName}.fileprovider",
                 file
             )
 
+            // 3. Buat Intent ACTION_VIEW untuk PackageInstaller
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             startActivity(intent)
             result.success(true)
         } catch (e: Exception) {
-            result.error("INSTALL_ERROR", e.message, null)
+            Log.e(TAG, "Error installing APK from $filePath", e)
+            result.error("INSTALL_ERROR", e.message ?: "Gagal menjalankan installer APK", null)
         }
     }
 
