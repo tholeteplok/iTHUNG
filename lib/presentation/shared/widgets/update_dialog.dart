@@ -60,6 +60,159 @@ Future<void> showUpdateInstallPromptDialog({
   );
 }
 
+/// Dialog panduan cadangan jika pemasangan otomatis Android terhalang izin atau batasan sistem
+Future<void> showInstallFallbackDialog({
+  required BuildContext context,
+  required WidgetRef ref,
+  required AppUpdateInfo info,
+}) async {
+  final downloadState = ref.read(updateDownloadProvider);
+  final exportPath = downloadState.publicExportPath;
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) => Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: ChunkyCard(
+          variant: ChunkyCardVariant.vanillaSoft,
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.colorHoney.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: AppTheme.colorHoney.withValues(alpha: 0.40),
+                    width: 2,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.folder_open_rounded,
+                    color: AppTheme.colorWoodMedium,
+                    size: 28,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Pasang dari Unduhan 📂',
+                style: GoogleFonts.quicksand(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.colorEspresso,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Sistem Android memerlukan izin pemasangan aplikasi atau file APK dapat dibuka langsung dari folder Download perangkat Anda.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.colorTaupe,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (exportPath != null && exportPath.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.colorSandyCanvas,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusBar),
+                    border: Border.all(
+                      color: AppTheme.colorWoodLight.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_outline,
+                          size: 14, color: AppTheme.colorSage),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Tersimpan di folder Download',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.colorWoodDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              ChunkyButton(
+                onPressed: () async {
+                  await ref
+                      .read(updateDownloadProvider.notifier)
+                      .openDownloadsFolder();
+                },
+                backgroundColor: AppTheme.colorSage,
+                width: double.infinity,
+                child: const Text(
+                  'Buka Folder Unduhan 📂',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ChunkyButton(
+                onPressed: () async {
+                  await ref
+                      .read(updateServiceProvider)
+                      .openInstallPermissionSettings();
+                },
+                backgroundColor: AppTheme.colorHoney,
+                width: double.infinity,
+                child: const Text(
+                  'Buka Izin Pengaturan ⚙️',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text(
+                  'Tutup',
+                  style: TextStyle(
+                    color: AppTheme.colorTaupe,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// Memeriksa kecocokan sertifikat dan menjalankan instalasi atau transisi keystore
 Future<void> handleAppInstall({
   required BuildContext context,
@@ -68,7 +221,11 @@ Future<void> handleAppInstall({
 }) async {
   final result =
       await ref.read(updateDownloadProvider.notifier).triggerInstall();
-  if (result == InstallResult.keystoreMismatch && context.mounted) {
+
+  if (!context.mounted) return;
+
+  if (result == InstallResult.keystoreMismatch) {
+    Navigator.of(context, rootNavigator: true).pop();
     final downloadState = ref.read(updateDownloadProvider);
     final ver = info.latestVersion;
     final fileName = 'iTHUNG-v$ver.apk';
@@ -78,6 +235,14 @@ Future<void> handleAppInstall({
       exportFileName: fileName,
       publicExportPath: downloadState.publicExportPath,
     );
+  } else if (result == InstallResult.failed) {
+    await showInstallFallbackDialog(
+      context: context,
+      ref: ref,
+      info: info,
+    );
+  } else if (result == InstallResult.success) {
+    Navigator.of(context, rootNavigator: true).pop();
   }
 }
 
@@ -198,7 +363,6 @@ class UpdateNotificationDialog extends ConsumerWidget {
               ChunkyButton(
                 onPressed: () async {
                   if (isAlreadySaved) {
-                    Navigator.pop(context);
                     await handleAppInstall(
                       context: context,
                       ref: ref,
@@ -522,7 +686,6 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                 const SizedBox(height: 16),
                 ChunkyButton(
                   onPressed: () async {
-                    Navigator.pop(context);
                     await handleAppInstall(
                       context: context,
                       ref: ref,
@@ -735,7 +898,6 @@ class UpdateInstallPromptDialog extends ConsumerWidget {
               const SizedBox(height: 20),
               ChunkyButton(
                 onPressed: () async {
-                  Navigator.pop(context);
                   await handleAppInstall(
                     context: context,
                     ref: ref,

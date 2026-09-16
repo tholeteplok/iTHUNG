@@ -236,7 +236,24 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
 
     // Signature cocok (normal update), jalankan installer standar
     final success = await _updateService.installApk(path);
-    return success ? InstallResult.success : InstallResult.failed;
+    if (!success) {
+      // Jika installer native gagal dibuka (misal izin instalasi belum aktif atau restriksi vendor),
+      // ekspor APK ke folder Download publik sebagai fallback cadangan
+      final ver = state.info?.latestVersion ?? 'update';
+      final fileName = 'iTHUNG-v$ver.apk';
+      final publicPath =
+          await _updateService.exportToPublicDownloads(path, fileName);
+      if (publicPath != null) {
+        state = state.copyWith(publicExportPath: publicPath);
+      }
+      return InstallResult.failed;
+    }
+    return InstallResult.success;
+  }
+
+  /// Membuka folder Download publik sistem Android
+  Future<bool> openDownloadsFolder() async {
+    return _updateService.openDownloadsFolder();
   }
 
   /// Membuka installer sistem Android untuk memasang file APK yang telah diunduh

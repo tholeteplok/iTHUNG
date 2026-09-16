@@ -518,6 +518,29 @@ class UpdateService {
         {'filePath': filePath},
       );
       return result ?? false;
+    } catch (e) {
+      debugPrint('[UpdateService] Gagal memanggil native installApk: $e');
+      return false;
+    }
+  }
+
+  /// Memeriksa apakah aplikasi memiliki izin memasang APK tidak dikenal (Android 8.0+)
+  Future<bool> canRequestPackageInstalls() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>('canRequestPackageInstalls');
+      return result ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Membuka pengaturan sistem untuk mengaktifkan izin pemasangan APK
+  Future<bool> openInstallPermissionSettings() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>('openInstallPermissionSettings');
+      return result ?? false;
     } catch (_) {
       return false;
     }
