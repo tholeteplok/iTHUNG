@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
@@ -13,15 +14,24 @@ class FeedbackOverlay extends StatelessWidget {
     super.key,
     required this.isCorrect,
     required this.roundScore,
+    this.isTimeout = false,
+    this.streak = 0,
   });
 
   final bool isCorrect;
   final int roundScore;
+  final bool isTimeout;
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
     final iconColor = isCorrect ? AppTheme.colorSage : AppTheme.colorCoral;
-    final icon = isCorrect ? AppIcons.answerCorrect : AppIcons.answerWrong;
+    final icon = isCorrect
+        ? AppIcons.answerCorrect
+        : (isTimeout ? AppIcons.answerTimeout : AppIcons.answerWrong);
+    final title = isCorrect
+        ? (streak >= 3 ? 'Mantap! 🔥x$streak' : 'Benar!')
+        : (isTimeout ? 'Waktu Habis!' : 'Ups, Salah!');
 
     return Center(
       child: TweenAnimationBuilder<double>(
@@ -45,21 +55,35 @@ class FeedbackOverlay extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: iconColor),
-              if (isCorrect && roundScore > 0) ...[
-                const SizedBox(width: 12),
-                Text(
-                  '+$roundScore',
-                  style: AppTheme.statNumberStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: iconColor,
-                  ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 40, color: iconColor),
+                  if (isCorrect && roundScore > 0) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      '+$roundScore',
+                      style: AppTheme.statNumberStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: iconColor,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: GoogleFonts.quicksand(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.colorEspresso,
                 ),
-              ],
+              ),
             ],
           ),
         ),

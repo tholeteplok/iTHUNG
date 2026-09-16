@@ -54,7 +54,7 @@ class ExitConfirmDialog extends StatelessWidget {
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       child: ChunkyCard(
-        variant: ChunkyCardVariant.woodBoard,
+        variant: ChunkyCardVariant.vanillaSoft,
         padding: const EdgeInsets.fromLTRB(26, 44, 26, 26),
         child: Column(
           mainAxisSize: MainAxisSize.min,

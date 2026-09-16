@@ -88,6 +88,16 @@ class GameSessionNotifier extends StateNotifier<GameSessionState>
   /// Daftar hasil ronde yang telah diselesaikan pada sesi ini.
   List<RoundResult> get completedRounds => List.unmodifiable(_completedRounds);
 
+  /// Nomor ronde berjalan (1-based) untuk HUD game.
+  int get currentRound => (_roundIndex + 1).clamp(1, args.totalRounds);
+
+  /// Skor berjalan sesi untuk HUD game.
+  int get runningScore =>
+      _completedRounds.fold<int>(0, (sum, r) => sum + r.roundScore);
+
+  /// Streak benar beruntun saat ini untuk HUD/feedback.
+  int get currentStreak => _streakCorrect;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final current = this.state;

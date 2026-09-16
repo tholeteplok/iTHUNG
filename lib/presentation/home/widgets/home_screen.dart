@@ -1,8 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/services/bgm_service.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../game/providers/level_band_theme_provider.dart';
@@ -12,6 +14,7 @@ import '../../shared/widgets/adventure_ribbon_banner.dart';
 import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/update_dialog.dart';
 import '../providers/level_stars_provider.dart';
+import '../providers/level_transition_provider.dart';
 import '../providers/player_profile_provider.dart';
 import 'mascot_node_character.dart';
 import 'floating_bottom_dock.dart';
@@ -332,6 +335,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       });
     }
 
+    // Dengarkan transisi zona (Fase 5 - PageView auto-slide ke zona baru)
+    ref.listen<LevelTransitionState?>(levelTransitionProvider, (prev, next) {
+      if (next != null && next.isZoneTransition && mounted) {
+        final targetStage =
+            ((next.toLevel - 1) ~/ 5).clamp(0, kIthungStages.length - 1);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageController.hasClients) {
+            _pageController.animateToPage(
+              targetStage,
+              duration: const Duration(milliseconds: 1100),
+              curve: Curves.easeInOutCubic,
+            );
+            ref.read(hapticServiceProvider).mediumImpact();
+            ref.read(levelTransitionProvider.notifier).clearTransition();
+          }
+        });
+      }
+    });
+
     final activeStage = kIthungStages[_currentStageIndex];
 
     return AnimatedContainer(
@@ -426,8 +448,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-/// Widget yang merender 1 lembar kanvas pemandangan dengan koordinat piksel terpadu 768 x 1376 px.
-class _StageCanvasView extends StatelessWidget {
+/// Widget yang merender 1 lembar kanvas pemandangan dengan koordinat piksel terpadu 768 x 1376 px,
+/// mendukung pergerakan lompatan parabolik maskot (Parabolic Hop) antar node level.
+class _StageCanvasView extends ConsumerStatefulWidget {
   const _StageCanvasView({
     required this.stage,
     required this.currentLevel,
@@ -448,7 +471,82 @@ class _StageCanvasView extends StatelessWidget {
   static const double canvasHeight = 1376.0;
 
   @override
+  ConsumerState<_StageCanvasView> createState() => _StageCanvasViewState();
+}
+
+class _StageCanvasViewState extends ConsumerState<_StageCanvasView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _hopController;
+  late final Animation<double> _hopAnimation;
+
+  LevelTransitionState? _activeTransition;
+
+  @override
+  void initState() {
+    super.initState();
+    _hopController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+
+    _hopAnimation = CurvedAnimation(
+      parent: _hopController,
+      curve: Curves.easeInOutQuad,
+    );
+
+    _hopController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        ref.read(hapticServiceProvider).lightImpact();
+        ref.read(levelTransitionProvider.notifier).clearTransition();
+        if (mounted) {
+          setState(() {
+            _activeTransition = null;
+          });
+        }
+      }
+    });
+
+    _checkAndStartTransition();
+  }
+
+  void _checkAndStartTransition() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final transition = ref.read(levelTransitionProvider);
+      if (transition != null && !transition.isZoneTransition) {
+        final fromIdx = transition.fromLevel - widget.stage.startLevel;
+        final toIdx = transition.toLevel - widget.stage.startLevel;
+        if (fromIdx >= 0 && fromIdx < 5 && toIdx >= 0 && toIdx < 5) {
+          setState(() {
+            _activeTransition = transition;
+          });
+          _hopController.forward(from: 0.0);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hopController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.listen<LevelTransitionState?>(levelTransitionProvider, (prev, next) {
+      if (next != null && !next.isZoneTransition && mounted) {
+        final fromIdx = next.fromLevel - widget.stage.startLevel;
+        final toIdx = next.toLevel - widget.stage.startLevel;
+        if (fromIdx >= 0 && fromIdx < 5 && toIdx >= 0 && toIdx < 5) {
+          setState(() {
+            _activeTransition = next;
+          });
+          _hopController.forward(from: 0.0);
+        }
+      }
+    });
+
     return SizedBox.expand(
       child: ClipRect(
         child: FittedBox(
@@ -456,24 +554,24 @@ class _StageCanvasView extends StatelessWidget {
           clipBehavior: Clip.hardEdge,
           alignment: Alignment.center,
           child: SizedBox(
-            width: canvasWidth,
-            height: canvasHeight,
+            width: _StageCanvasView.canvasWidth,
+            height: _StageCanvasView.canvasHeight,
             child: Stack(
               fit: StackFit.expand,
               clipBehavior: Clip.none,
               children: [
                 // 1. Scenic Canvas Background Image (768 x 1376 px)
                 Image.asset(
-                  stage.assetPath,
-                  width: canvasWidth,
-                  height: canvasHeight,
+                  widget.stage.assetPath,
+                  width: _StageCanvasView.canvasWidth,
+                  height: _StageCanvasView.canvasHeight,
                   fit: BoxFit.fill,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: stage.accentColor.withValues(alpha: 0.15),
+                      color: widget.stage.accentColor.withValues(alpha: 0.15),
                       child: Center(
                         child: Text(
-                          stage.title,
+                          widget.stage.title,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -481,34 +579,128 @@ class _StageCanvasView extends StatelessWidget {
                   },
                 ),
 
-                // 2. Dynamic Interactive Level Nodes Overlay at exact calibrated pixel positions
+                // 2. Dynamic Interactive Level Nodes Overlay
                 for (var i = 0; i < 5; i++)
                   _buildNodeItem(
                     context: context,
-                    level: stage.startLevel + i,
-                    pos: stage.nodeAnchors[i],
+                    level: widget.stage.startLevel + i,
+                    pos: widget.stage.nodeAnchors[i],
                     scale: kStagePerspectiveScales[i],
                   ),
 
                 // 3. Milestone Chest Node at summit destination
                 Positioned(
-                  left: stage.chestAnchor.dx - 26,
-                  top: stage.chestAnchor.dy - 26,
+                  left: widget.stage.chestAnchor.dx - 26,
+                  top: widget.stage.chestAnchor.dy - 26,
                   width: 52,
                   height: 52,
                   child: Transform.scale(
                     scale: kMilestoneChestPerspectiveScale,
                     alignment: Alignment.center,
                     child: MilestoneChestNode(
-                      level: stage.endLevel,
-                      isUnlocked: stage.endLevel <= currentLevel,
-                      accentColor: stage.accentColor,
+                      level: widget.stage.endLevel,
+                      isUnlocked: widget.stage.endLevel <= widget.currentLevel,
+                      accentColor: widget.stage.accentColor,
                     ),
                   ),
                 ),
+
+                // 4. Mascot Layer (Independent layer over nodes for smooth parabolic jumping)
+                _buildMascotLayer(),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMascotLayer() {
+    final stage = widget.stage;
+    final currentLvl = widget.currentLevel;
+
+    // Transisi Lompatan Parabolik Aktif
+    if (_activeTransition != null && _hopController.isAnimating) {
+      final fromIdx = _activeTransition!.fromLevel - stage.startLevel;
+      final toIdx = _activeTransition!.toLevel - stage.startLevel;
+
+      if (fromIdx >= 0 && fromIdx < 5 && toIdx >= 0 && toIdx < 5) {
+        final startPos = stage.nodeAnchors[fromIdx];
+        final endPos = stage.nodeAnchors[toIdx];
+        final startScale = kStagePerspectiveScales[fromIdx];
+        final endScale = kStagePerspectiveScales[toIdx];
+
+        return AnimatedBuilder(
+          animation: _hopAnimation,
+          builder: (context, _) {
+            final t = _hopAnimation.value;
+            final currentX = startPos.dx + (endPos.dx - startPos.dx) * t;
+
+            // Parabola: Garis dasar + lengkungan busur ke atas (puncak di t = 0.5)
+            final baseY = startPos.dy + (endPos.dy - startPos.dy) * t;
+            final jumpArc = 120.0 * 4.0 * t * (1.0 - t);
+            final currentY = baseY - jumpArc;
+
+            // Skala perspektif kedalaman
+            final currentScale = startScale + (endScale - startScale) * t;
+
+            // Squash & Stretch dinamis saat mendarat
+            double squashX = 1.0;
+            double squashY = 1.0;
+            if (t > 0.85) {
+              final landT = (t - 0.85) / 0.15;
+              squashX = 1.0 + (0.12 * math.sin(landT * math.pi));
+              squashY = 1.0 - (0.10 * math.sin(landT * math.pi));
+            }
+
+            final finalTop =
+                currentY - (172 * currentScale).clamp(140.0, 206.0);
+
+            return Positioned(
+              left: currentX - 140,
+              top: finalTop,
+              width: 280,
+              child: Center(
+                child: Transform.scale(
+                  scaleX: squashX,
+                  scaleY: squashY,
+                  alignment: Alignment.bottomCenter,
+                  child: MascotNodeCharacter(
+                    level: _activeTransition!.toLevel,
+                    scale: currentScale,
+                    avatarId: widget.avatarId,
+                    avatarLetter: widget.avatarLetter,
+                    onTap: () =>
+                        context.go('/game/${_activeTransition!.toLevel}'),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }
+    }
+
+    // Posisi statis biasa pada node level aktif
+    final isLevelInThisStage =
+        currentLvl >= stage.startLevel && currentLvl <= stage.endLevel;
+    if (!isLevelInThisStage) return const SizedBox.shrink();
+
+    final activeIndex = (currentLvl - stage.startLevel).clamp(0, 4);
+    final pos = stage.nodeAnchors[activeIndex];
+    final scale = kStagePerspectiveScales[activeIndex];
+
+    return Positioned(
+      left: pos.dx - 140,
+      top: pos.dy - (172 * scale).clamp(140.0, 206.0),
+      width: 280,
+      child: Center(
+        child: MascotNodeCharacter(
+          level: currentLvl,
+          scale: scale,
+          avatarId: widget.avatarId,
+          avatarLetter: widget.avatarLetter,
+          onTap: () => context.go('/game/$currentLvl'),
         ),
       ),
     );
@@ -520,65 +712,42 @@ class _StageCanvasView extends StatelessWidget {
     required Offset pos,
     required double scale,
   }) {
-    final status = level < currentLevel
+    final status = level < widget.currentLevel
         ? LevelNodeStatus.completed
-        : level == currentLevel
+        : level == widget.currentLevel
         ? LevelNodeStatus.active
         : LevelNodeStatus.locked;
 
-    final starCount = starsMap[level] ?? 0;
+    final starCount = widget.starsMap[level] ?? 0;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Level Node (Center positioned around pos, scaled with 3D depth perspective)
-        Positioned(
-          left: pos.dx - 75,
-          top: status == LevelNodeStatus.active
-              ? pos.dy - (43 * scale)
-              : (status == LevelNodeStatus.completed
-                  ? pos.dy - (29 * scale)
-                  : pos.dy - (27 * scale)),
-          width: 150,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.topCenter,
-              child: LevelNode(
-                level: level,
-                status: status,
-                accentColor: status == LevelNodeStatus.active
-                    ? AppTheme.colorSage
-                    : stage.accentColor,
-                starCount: starCount,
-                onTap: () {
-                  if (status != LevelNodeStatus.locked) {
-                    context.go('/game/$level');
-                  }
-                },
-              ),
-            ),
+    return Positioned(
+      left: pos.dx - 75,
+      top: status == LevelNodeStatus.active
+          ? pos.dy - (43 * scale)
+          : (status == LevelNodeStatus.completed
+              ? pos.dy - (29 * scale)
+              : pos.dy - (27 * scale)),
+      width: 150,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Transform.scale(
+          scale: scale,
+          alignment: Alignment.topCenter,
+          child: LevelNode(
+            level: level,
+            status: status,
+            accentColor: status == LevelNodeStatus.active
+                ? AppTheme.colorSage
+                : widget.stage.accentColor,
+            starCount: starCount,
+            onTap: () {
+              if (status != LevelNodeStatus.locked) {
+                context.go('/game/$level');
+              }
+            },
           ),
         ),
-
-        // Karakter Maskot 2D Full-body & Balon Ucapan di atas active node
-        if (status == LevelNodeStatus.active)
-          Positioned(
-            left: pos.dx - 140,
-            top: pos.dy - (172 * scale).clamp(140.0, 206.0),
-            width: 280,
-            child: Center(
-              child: MascotNodeCharacter(
-                level: level,
-                scale: scale,
-                avatarId: avatarId,
-                avatarLetter: avatarLetter,
-                onTap: () => context.go('/game/$level'),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

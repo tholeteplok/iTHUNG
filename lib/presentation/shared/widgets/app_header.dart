@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import 'badge_pill.dart';
 
 /// Header persisten untuk GameScreen, HomeScreen, dan ShellRoute.
@@ -55,19 +56,33 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (onBackTap != null) ...[
-                  IconButton(
-                    onPressed: onBackTap,
-                    icon: const Icon(
-                      Icons.arrow_back_rounded,
-                      size: 24,
-                      color: AppTheme.colorEspresso,
+                  GestureDetector(
+                    onTap: onBackTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.colorVanillaCard,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.colorTranslucentBorder,
+                          width: AppTokens.borderWidthSubtle,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.colorWoodDark.withValues(alpha: 0.08),
+                            offset: const Offset(0, 2),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        AppIcons.back,
+                        size: 20,
+                        color: AppTheme.colorEspresso,
+                      ),
                     ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 40,
-                      minHeight: 40,
-                    ),
-                    splashRadius: 20,
                   ),
                   const SizedBox(width: 4),
                 ] else if (leading != null) ...[

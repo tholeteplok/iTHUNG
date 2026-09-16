@@ -60,7 +60,7 @@ class _AvatarSelectionDialogState extends ConsumerState<AvatarSelectionDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
+          variant: ChunkyCardVariant.vanillaSoft,
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,

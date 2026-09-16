@@ -46,6 +46,9 @@ class AppIcons {
   /// Overlay saat jawaban salah atau timeout.
   static const IconData answerWrong = TablerIcons.circleX;
 
+  /// Overlay saat waktu habis tanpa jawaban.
+  static const IconData answerTimeout = TablerIcons.clock;
+
   // ── Tambahan Menu & Profil ──────────────────────────────────────
 
   /// Ikon avatar profil.

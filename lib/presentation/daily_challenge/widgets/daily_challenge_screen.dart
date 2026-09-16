@@ -416,7 +416,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ChunkyCard(
-              variant: ChunkyCardVariant.wood,
+              variant: ChunkyCardVariant.vanillaSoft,
               padding: const EdgeInsets.all(28),
               child: Column(
                 children: [

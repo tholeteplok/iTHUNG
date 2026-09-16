@@ -47,9 +47,17 @@ class MascotNodeCharacter extends StatefulWidget {
 }
 
 class _MascotNodeCharacterState extends State<MascotNodeCharacter>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bounceController;
-  late final Animation<double> _bounceAnimation;
+    with TickerProviderStateMixin {
+  late final AnimationController _breathController;
+  late final Animation<double> _floatAnimation;
+  late final Animation<double> _squashXAnimation;
+  late final Animation<double> _stretchYAnimation;
+  late final Animation<double> _swayAnimation;
+  late final Animation<double> _shadowScaleAnimation;
+  late final Animation<double> _shadowOpacityAnimation;
+
+  late final AnimationController _popController;
+  late final Animation<double> _popScaleAnimation;
   Timer? _poseTimer;
 
   int _currentPoseIndex = 0;
@@ -67,15 +75,59 @@ class _MascotNodeCharacterState extends State<MascotNodeCharacter>
   void initState() {
     super.initState();
 
-    // Animasi idle bounce lembut (vertikal)
-    _bounceController = AnimationController(
+    // 1. Siklus Napas & Mengapung Halus Organik (2400ms Cubic - 60/120 FPS Buttery Smooth)
+    _breathController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
-    _bounceAnimation = Tween<double>(begin: 0.0, end: -5.0).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
+    final breathCurve = CurvedAnimation(
+      parent: _breathController,
+      curve: Curves.easeInOutCubic,
     );
+
+    // Translasi vertikal lembut (mengapung santai tanpa sentakan)
+    _floatAnimation = Tween<double>(begin: 0.0, end: -5.0).animate(breathCurve);
+
+    // Squash & Stretch mikro: deformasi volumetrik elastis alami
+    _squashXAnimation =
+        Tween<double>(begin: 1.015, end: 0.988).animate(breathCurve);
+    _stretchYAnimation =
+        Tween<double>(begin: 0.988, end: 1.018).animate(breathCurve);
+
+    // Kemiringan mikro (tilt/sway) organik sangat halus saat bernapas (±1 derajat)
+    _swayAnimation =
+        Tween<double>(begin: -0.018, end: 0.018).animate(breathCurve);
+
+    // Bayangan lantai bereaksi dinamis terhadap elevasi
+    _shadowScaleAnimation =
+        Tween<double>(begin: 1.0, end: 0.88).animate(breathCurve);
+    _shadowOpacityAnimation =
+        Tween<double>(begin: 0.24, end: 0.15).animate(breathCurve);
+
+    // 2. Kontroler Tactile Pop saat di-tap (Spring bounce)
+    _popController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _popScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.15)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 35,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.15, end: 0.97)
+            .chain(CurveTween(curve: Curves.easeInOutQuad)),
+        weight: 35,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.97, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 30,
+      ),
+    ]).animate(_popController);
 
     // Siklus pergantian pose setiap 3.5 detik
     _poseTimer = Timer.periodic(const Duration(milliseconds: 3500), (timer) {
@@ -90,12 +142,14 @@ class _MascotNodeCharacterState extends State<MascotNodeCharacter>
   @override
   void dispose() {
     _poseTimer?.cancel();
-    _bounceController.dispose();
+    _breathController.dispose();
+    _popController.dispose();
     super.dispose();
   }
 
   void _handleTap() {
-    // Saat di-tap, langsung switch ke pose cheer gembira
+    // Saat di-tap, langsung switch ke pose cheer gembira & trigger pop bounce
+    _popController.forward(from: 0.0);
     setState(() {
       _currentPoseIndex = 2; // Cheer pose
     });
@@ -111,72 +165,90 @@ class _MascotNodeCharacterState extends State<MascotNodeCharacter>
 
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _bounceAnimation,
+        animation: Listenable.merge([_breathController, _popController]),
         builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(0, _bounceAnimation.value),
-            child: child,
-          );
-        },
-        child: GestureDetector(
-          onTap: _handleTap,
-          behavior: HitTestBehavior.opaque,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 1. Balon Ucapan (Speech Bubble)
-              _buildSpeechBubble(context, currentText, clampedScale),
+          final totalScale = _popScaleAnimation.value;
+          return GestureDetector(
+            onTap: _handleTap,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 1. Balon Ucapan (Speech Bubble) dengan elevasi teredam
+                Transform.translate(
+                  offset: Offset(0, _floatAnimation.value * 0.45),
+                  child: _buildSpeechBubble(context, currentText, clampedScale),
+                ),
 
-              const SizedBox(height: 2),
+                const SizedBox(height: 2),
 
-              // 2. Karakter 2D Sprite (3 Pose Bergantian - Skala +50%)
-              SizedBox(
-                height: characterHeight,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: Tween<double>(begin: 0.94, end: 1.0).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutBack,
+                // 2. Karakter 2D Sprite (Squash & Stretch + Floating + Subtle Tilt + Tap Pop)
+                Transform.translate(
+                  offset: Offset(0, _floatAnimation.value),
+                  child: Transform.rotate(
+                    angle: _swayAnimation.value,
+                    alignment: Alignment.bottomCenter,
+                    child: Transform.scale(
+                      scaleX: _squashXAnimation.value * totalScale,
+                      scaleY: _stretchYAnimation.value * totalScale,
+                      alignment: Alignment.bottomCenter,
+                      child: SizedBox(
+                        height: characterHeight,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 320),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: ScaleTransition(
+                                scale: Tween<double>(begin: 0.94, end: 1.0).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOutBack,
+                                  ),
+                                ),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Image.asset(
+                            currentSprite,
+                            key: ValueKey<String>(currentSprite),
+                            height: characterHeight,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.medium,
                           ),
                         ),
-                        child: child,
                       ),
-                    );
-                  },
-                  child: Image.asset(
-                    currentSprite,
-                    key: ValueKey<String>(currentSprite),
-                    height: characterHeight,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.medium,
+                    ),
                   ),
                 ),
-              ),
 
-              // 3. Bayangan Pijakan Kaki Karakter (Ground Shadow - Skala +50%)
-              Container(
-                width: 57.0 * clampedScale,
-                height: 10.0 * clampedScale,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.colorWoodDark.withValues(alpha: 0.28),
-                      blurRadius: 5.0 * clampedScale,
-                      offset: Offset(0, 2.0 * clampedScale),
+                // 3. Bayangan Pijakan Kaki Karakter (Ground Shadow) - Reaktif terhadap Elevasi & Tap
+                Transform.scale(
+                  scaleX: _shadowScaleAnimation.value * (1.0 + (totalScale - 1.0) * 0.5),
+                  scaleY: _shadowScaleAnimation.value,
+                  child: Container(
+                    width: 57.0 * clampedScale,
+                    height: 10.0 * clampedScale,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.colorWoodDark.withValues(
+                            alpha: _shadowOpacityAnimation.value,
+                          ),
+                          blurRadius: (5.0 * clampedScale) / _shadowScaleAnimation.value,
+                          offset: Offset(0, 2.0 * clampedScale),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

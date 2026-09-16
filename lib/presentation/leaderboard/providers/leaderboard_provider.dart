@@ -175,10 +175,42 @@ class AllTimeEntriesNotifier extends AsyncNotifier<List<LeaderboardEntry>> {
       currentPlayerUsername: username,
     );
 
-    return switch (result) {
+    final entries = switch (result) {
       RepoSuccess(:final value) => value,
       RepoFailure(:final reason) => throw Exception(reason),
     };
+
+    // Sinkronisasi optimistik: jika profil lokal memiliki skor yang lebih tinggi
+    // daripada snapshot Firestore, tampilkan skor lokal tertinggi agar pemain
+    // tidak melihat skor mundur/stale di papan peringkat All-Time.
+    final localProfile = ref.watch(playerProfileProvider).valueOrNull;
+    if (localProfile != null && username != null && username.isNotEmpty) {
+      final localScore = localProfile.totalScore;
+      final existingIndex = entries.indexWhere(
+        (e) => e.username.toLowerCase() == username.toLowerCase(),
+      );
+
+      if (existingIndex != -1) {
+        final currentEntry = entries[existingIndex];
+        if (localScore > (currentEntry.totalScore ?? 0)) {
+          final updatedEntry = currentEntry.copyWith(
+            totalScore: localScore,
+            avatarId: localProfile.avatarId ?? currentEntry.avatarId,
+            isCurrentPlayer: true,
+          );
+          final updatedList = [...entries]..[existingIndex] = updatedEntry;
+          updatedList.sort(
+            (a, b) => (b.totalScore ?? 0).compareTo(a.totalScore ?? 0),
+          );
+          return [
+            for (var i = 0; i < updatedList.length; i++)
+              updatedList[i].copyWith(rank: i + 1),
+          ];
+        }
+      }
+    }
+
+    return entries;
   }
 
   /// Menambahkan / memperbarui skor total pemain secara optimistik pada list all-time.

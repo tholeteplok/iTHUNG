@@ -46,7 +46,7 @@ class LevelProgressCard extends StatelessWidget {
     }
 
     return ChunkyCard(
-      variant: ChunkyCardVariant.woodBoard,
+      variant: ChunkyCardVariant.vanillaSoft,
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

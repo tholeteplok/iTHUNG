@@ -12,9 +12,9 @@ class BadgePill extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.iconColor,
-    this.backgroundColor = AppTheme.colorTranslucentSurface,
+    this.backgroundColor = AppTheme.colorVanillaCard,
     this.borderColor = AppTheme.colorTranslucentBorder,
-    this.hasShadow = false,
+    this.hasShadow = true,
     this.label,
     this.onTap,
   });
@@ -31,20 +31,20 @@ class BadgePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget pill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
         border: Border.all(
           color: borderColor,
-          width: 1.5,
+          width: AppTokens.borderWidthSubtle,
         ),
         boxShadow: hasShadow
             ? [
                 BoxShadow(
-                  color: AppTheme.colorWoodDark.withValues(alpha: 0.10),
+                  color: AppTheme.colorWoodDark.withValues(alpha: 0.08),
                   offset: const Offset(0, 2),
-                  blurRadius: 3,
+                  blurRadius: 4,
                 ),
               ]
             : null,

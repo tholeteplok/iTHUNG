@@ -6,6 +6,15 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.tholeteplok.ithung"
     compileSdk = flutter.compileSdkVersion
@@ -31,17 +40,28 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystoreFile = file("ithung_release.jks")
-            if (keystoreFile.exists()) {
-                storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
-                keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                val storeFilePath = keystoreProperties.getProperty("storeFile")
+                storeFile = if (storeFilePath != null) {
+                    val rootKeystore = rootProject.file(storeFilePath)
+                    if (rootKeystore.exists()) rootKeystore else file(storeFilePath)
+                } else null
+                storePassword = keystoreProperties.getProperty("storePassword")
             } else {
-                storeFile = signingConfigs.getByName("debug").storeFile
-                storePassword = signingConfigs.getByName("debug").storePassword
-                keyAlias = signingConfigs.getByName("debug").keyAlias
-                keyPassword = signingConfigs.getByName("debug").keyPassword
+                val keystoreFile = file("ithung_release.jks")
+                if (keystoreFile.exists()) {
+                    storeFile = keystoreFile
+                    storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                    keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+                    keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+                } else {
+                    storeFile = signingConfigs.getByName("debug").storeFile
+                    storePassword = signingConfigs.getByName("debug").storePassword
+                    keyAlias = signingConfigs.getByName("debug").keyAlias
+                    keyPassword = signingConfigs.getByName("debug").keyPassword
+                }
             }
         }
     }

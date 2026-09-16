@@ -95,7 +95,7 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
     final uid = authRepo.currentUserId;
     String? effectiveUsername = authRepo.currentUsername ?? localProfile?.username;
 
-    // Jika user sudah login dan profil lokal belum punya username atau butuh sinkronisasi dari cloud
+    // Jika user sudah login dan profil lokal belum punya username atau butuh pemulihan awal dari cloud
     if (uid != null && (effectiveUsername == null || effectiveUsername.isEmpty)) {
       effectiveUsername = await _restoreFromCloud(
         uid: uid,
@@ -109,6 +109,7 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
         effectiveUsername.isNotEmpty) {
       Future.microtask(() {
         ref.read(dailySyncServiceProvider).syncPendingSubmissions();
+        reconcileProfileWithCloud();
       });
     }
 
@@ -118,6 +119,36 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
       username: effectiveUsername,
       hasVerifiedSession: true,
     );
+  }
+
+  bool _isReconciling = false;
+
+  /// Melakukan rekonsiliasi dua arah antara profil lokal (Hive) dan Firestore (/profiles/{uid}).
+  /// - Jika data lokal (skor, level, xp) > Firestore: dorong ke cloud (self-healing push).
+  /// - Jika data Firestore > data lokal: pulihkan ke Hive (restore from cloud).
+  Future<void> reconcileProfileWithCloud() async {
+    if (_isReconciling) return;
+    _isReconciling = true;
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      if (!authRepo.isLoggedIn) return;
+      final uid = authRepo.currentUserId;
+      if (uid == null) return;
+
+      final localProfile = ref.read(playerProfileProvider).valueOrNull;
+      final effectiveUsername =
+          authRepo.currentUsername ?? localProfile?.username;
+
+      await _restoreFromCloud(
+        uid: uid,
+        localProfile: localProfile,
+        initialUsername: effectiveUsername,
+      );
+    } catch (e) {
+      debugPrint('[reconcileProfileWithCloud] Gagal rekonsiliasi profil: $e');
+    } finally {
+      _isReconciling = false;
+    }
   }
 
   /// Memulihkan dan menyinkronkan profil pemain dari cloud (/profiles/{uid} & /usernames).
@@ -225,42 +256,40 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
         if ((localLevelIsHigher || localScoreIsHigher || localXpIsHigher) &&
             usernameToPush != null &&
             usernameToPush.trim().length >= 4) {
-          unawaited(() async {
-            try {
-              final scoreRepo = ref.read(levelScoreRepositoryProvider);
-              final allRecordsRes = await scoreRepo.getAllRecords();
-              final Map<String, dynamic> localRecordsPayload = {};
-              if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
-                for (final entry in allRecordsRes.value.entries) {
-                  localRecordsPayload[entry.key.toString()] = entry.value.toJson();
-                }
+          try {
+            final scoreRepo = ref.read(levelScoreRepositoryProvider);
+            final allRecordsRes = await scoreRepo.getAllRecords();
+            final Map<String, dynamic> localRecordsPayload = {};
+            if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
+              for (final entry in allRecordsRes.value.entries) {
+                localRecordsPayload[entry.key.toString()] = entry.value.toJson();
               }
-
-              final challengeRepo = ref.read(challengeScoreRepositoryProvider);
-              final allChallengeRes = await challengeRepo.getAllRecords();
-              final Map<String, dynamic> localChallengePayload = {};
-              if (allChallengeRes
-                  is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
-                for (final entry in allChallengeRes.value.entries) {
-                  localChallengePayload[entry.key] = entry.value.toJson();
-                }
-              }
-
-              await leaderboardRepo.syncProfileProgress(
-                username: usernameToPush,
-                avatarId: restoredProfile.avatarId,
-                totalScore: restoredProfile.totalScore,
-                currentLevel: restoredProfile.currentLevel,
-                totalXp: restoredProfile.totalXp,
-                levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
-                challengeRecords: localChallengePayload.isNotEmpty
-                    ? localChallengePayload
-                    : null,
-              );
-            } catch (err) {
-              debugPrint('[_restoreFromCloud] Gagal self-healing push ke cloud: $err');
             }
-          }());
+
+            final challengeRepo = ref.read(challengeScoreRepositoryProvider);
+            final allChallengeRes = await challengeRepo.getAllRecords();
+            final Map<String, dynamic> localChallengePayload = {};
+            if (allChallengeRes
+                is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
+              for (final entry in allChallengeRes.value.entries) {
+                localChallengePayload[entry.key] = entry.value.toJson();
+              }
+            }
+
+            await leaderboardRepo.syncProfileProgress(
+              username: usernameToPush,
+              avatarId: restoredProfile.avatarId,
+              totalScore: restoredProfile.totalScore,
+              currentLevel: restoredProfile.currentLevel,
+              totalXp: restoredProfile.totalXp,
+              levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+              challengeRecords: localChallengePayload.isNotEmpty
+                  ? localChallengePayload
+                  : null,
+            );
+          } catch (err) {
+            debugPrint('[_restoreFromCloud] Gagal self-healing push ke cloud: $err');
+          }
         }
       } else if (cloudRes is RepoSuccess<Map<String, dynamic>?> && cloudRes.value == null) {
         // Dokumen cloud belum ada. Inisialisasi profil ke Firestore jika data lokal tersedia.
@@ -275,42 +304,40 @@ class AccountStatusNotifier extends AsyncNotifier<AccountState> {
         if (effectiveUsername != null && effectiveUsername.trim().length >= 4) {
           final profileToSync = baseProfile;
           final usernameToSync = effectiveUsername;
-          unawaited(() async {
-            try {
-              final scoreRepo = ref.read(levelScoreRepositoryProvider);
-              final allRecordsRes = await scoreRepo.getAllRecords();
-              final Map<String, dynamic> localRecordsPayload = {};
-              if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
-                for (final entry in allRecordsRes.value.entries) {
-                  localRecordsPayload[entry.key.toString()] = entry.value.toJson();
-                }
+          try {
+            final scoreRepo = ref.read(levelScoreRepositoryProvider);
+            final allRecordsRes = await scoreRepo.getAllRecords();
+            final Map<String, dynamic> localRecordsPayload = {};
+            if (allRecordsRes is RepoSuccess<Map<int, LevelScoreRecord>>) {
+              for (final entry in allRecordsRes.value.entries) {
+                localRecordsPayload[entry.key.toString()] = entry.value.toJson();
               }
-
-              final challengeRepo = ref.read(challengeScoreRepositoryProvider);
-              final allChallengeRes = await challengeRepo.getAllRecords();
-              final Map<String, dynamic> localChallengePayload = {};
-              if (allChallengeRes
-                  is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
-                for (final entry in allChallengeRes.value.entries) {
-                  localChallengePayload[entry.key] = entry.value.toJson();
-                }
-              }
-
-              await leaderboardRepo.syncProfileProgress(
-                username: usernameToSync,
-                avatarId: profileToSync.avatarId,
-                totalScore: profileToSync.totalScore,
-                currentLevel: profileToSync.currentLevel,
-                totalXp: profileToSync.totalXp,
-                levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
-                challengeRecords: localChallengePayload.isNotEmpty
-                    ? localChallengePayload
-                    : null,
-              );
-            } catch (err) {
-              debugPrint('[_restoreFromCloud] Gagal inisialisasi push profil ke cloud: $err');
             }
-          }());
+
+            final challengeRepo = ref.read(challengeScoreRepositoryProvider);
+            final allChallengeRes = await challengeRepo.getAllRecords();
+            final Map<String, dynamic> localChallengePayload = {};
+            if (allChallengeRes
+                is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
+              for (final entry in allChallengeRes.value.entries) {
+                localChallengePayload[entry.key] = entry.value.toJson();
+              }
+            }
+
+            await leaderboardRepo.syncProfileProgress(
+              username: usernameToSync,
+              avatarId: profileToSync.avatarId,
+              totalScore: profileToSync.totalScore,
+              currentLevel: profileToSync.currentLevel,
+              totalXp: profileToSync.totalXp,
+              levelRecords: localRecordsPayload.isNotEmpty ? localRecordsPayload : null,
+              challengeRecords: localChallengePayload.isNotEmpty
+                  ? localChallengePayload
+                  : null,
+            );
+          } catch (err) {
+            debugPrint('[_restoreFromCloud] Gagal inisialisasi push profil ke cloud: $err');
+          }
         }
       }
     } catch (e, stack) {

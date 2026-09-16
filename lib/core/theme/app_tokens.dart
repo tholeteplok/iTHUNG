@@ -139,9 +139,9 @@ class AppAssets {
   }
 
   /// Pose Karakter 2D Full-body Avatar 7 (Burung Cendekia)
-  static const String characterAvatar7Idle = 'assets/images/characters/avatar_7_idle.png';
-  static const String characterAvatar7Think = 'assets/images/characters/avatar_7_think.png';
-  static const String characterAvatar7Cheer = 'assets/images/characters/avatar_7_cheer.png';
+  static const String characterAvatar7Idle = 'assets/images/characters/avatar_7_idle.webp';
+  static const String characterAvatar7Think = 'assets/images/characters/avatar_7_think.webp';
+  static const String characterAvatar7Cheer = 'assets/images/characters/avatar_7_cheer.webp';
 
   /// Daftar pose siklus animasi Avatar 7
   static const List<String> characterAvatar7Poses = [

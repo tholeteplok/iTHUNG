@@ -1,0 +1,8 @@
+# Contoh template key.properties untuk signing Android rilis
+# Salin berkas ini menjadi "key.properties" di dalam folder android/ lalu sesuaikan nilainya:
+# cp key.properties.example key.properties
+
+storePassword=password_keystore_anda
+keyPassword=password_kunci_anda
+keyAlias=ithung_key
+storeFile=ithung_release.jks

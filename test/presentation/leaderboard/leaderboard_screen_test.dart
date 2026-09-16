@@ -134,10 +134,10 @@ void main() {
     expect(find.text('12/12'), findsOneWidget);
     expect(find.text('11/12'), findsOneWidget);
     expect(find.text('Kamu'), findsOneWidget);
-    expect(find.text('Harian'), findsOneWidget);
-    expect(find.text('Speed'), findsOneWidget);
-    expect(find.text('Maraton'), findsOneWidget);
-    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('HARIAN'), findsOneWidget);
+    expect(find.text('SPEED'), findsOneWidget);
+    expect(find.text('MARATON'), findsOneWidget);
+    expect(find.text('SEMUA'), findsOneWidget);
     expect(find.text('Golden Sun Canyon'), findsOneWidget);
   });
 
