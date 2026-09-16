@@ -62,6 +62,26 @@ void main() {
       }
     });
 
+    test('generates valid expert questions (Level 51-75)', () {
+      for (var level = 51; level <= 75; level += 5) {
+        final q = generator.generateForLevel(level);
+
+        expect(q.level, equals(level));
+        expect(q.levelBand, equals('expert'));
+        expect(q.correctAnswer, greaterThan(0));
+      }
+    });
+
+    test('generates valid master questions (Level 76-100)', () {
+      for (var level = 76; level <= 100; level += 5) {
+        final q = generator.generateForLevel(level);
+
+        expect(q.level, equals(level));
+        expect(q.levelBand, equals('master'));
+        expect(q.correctAnswer, greaterThan(0));
+      }
+    });
+
     test(
       'relaxation ladder always returns a valid question even for impossible constraints',
       () {

@@ -21,11 +21,40 @@ import 'leaderboard_podium.dart';
 import 'pinned_self_rank_bar.dart';
 
 /// Layar Papan Peringkat Global / Kohor Harian / Speed Blitz / Math Marathon.
-class LeaderboardScreen extends ConsumerWidget {
+class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LeaderboardScreen> createState() => _LeaderboardScreenState();
+}
+
+class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
+  bool _hasTriggeredInitialSync = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerInitialSync();
+    });
+  }
+
+  void _triggerInitialSync() {
+    if (_hasTriggeredInitialSync || !mounted) return;
+    _hasTriggeredInitialSync = true;
+
+    final accountState = ref.read(accountStatusProvider).valueOrNull;
+    if (accountState == null || accountState.isGuest || !accountState.hasUsername) {
+      return;
+    }
+
+    // Picu auto-sync dan rekonsiliasi satu kali di latar belakang saat layar pertama kali dimount
+    ref.read(dailySyncServiceProvider).syncPendingSubmissions();
+    ref.read(accountStatusProvider.notifier).reconcileProfileWithCloud();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final accountState = ref.watch(accountStatusProvider).valueOrNull ??
         const AccountState(status: AccountStatus.guest);
 
@@ -33,10 +62,6 @@ class LeaderboardScreen extends ConsumerWidget {
     if (accountState.isGuest || !accountState.hasUsername) {
       return LeaderboardLockedView(accountState: accountState);
     }
-
-    // Picu auto-sync hasil tantangan harian & rekonsiliasi profil pemain di latar belakang
-    ref.read(dailySyncServiceProvider).syncPendingSubmissions();
-    ref.read(accountStatusProvider.notifier).reconcileProfileWithCloud();
 
     // 2. Jika sudah terhubung, tampilkan Leaderboard dengan mode toggle
     final mode = ref.watch(leaderboardModeProvider);

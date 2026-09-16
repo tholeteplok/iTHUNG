@@ -402,9 +402,11 @@ class QuestionGenerator {
         level: level,
         requireCarry: true,
       );
-    } else {
-      // Expert: 3-digit / mixed + 50% multistep
-      if (rng.nextBool()) {
+    } else if (level <= 75) {
+      // Expert (Highland Wind, Level 51-75): 2-3 digit multiplication, division, and multistep
+      final roll = rng.nextInt(10);
+      if (roll < 4) {
+        // 40% multistep (a ± b) × c
         return QuestionTemplate(
           operation: Operation.mixedMultistep,
           rangeA: const OperandRange(min: 2, max: 12),
@@ -414,16 +416,62 @@ class QuestionGenerator {
           level: level,
           stepCount: 2,
         );
+      } else if (roll < 7) {
+        // 30% multiplication 2-digit (11..25 x 11..25)
+        return QuestionTemplate(
+          operation: Operation.multiply,
+          rangeA: const OperandRange(min: 11, max: 25),
+          rangeB: const OperandRange(min: 11, max: 25),
+          strategyTag: StrategyTag.procedural,
+          levelBand: 'expert',
+          level: level,
+        );
+      } else {
+        // 30% division 2-digit (dividend up to 300)
+        return QuestionTemplate(
+          operation: Operation.divide,
+          rangeA: const OperandRange(min: 11, max: 25),
+          rangeB: const OperandRange(min: 3, max: 12),
+          strategyTag: StrategyTag.procedural,
+          levelBand: 'expert',
+          level: level,
+        );
       }
-      // Expert: 3-digit / mixed
-      return QuestionTemplate(
-        operation: Operation.multiply,
-        rangeA: const OperandRange(min: 11, max: 25),
-        rangeB: const OperandRange(min: 11, max: 25),
-        strategyTag: StrategyTag.procedural,
-        levelBand: 'expert',
-        level: level,
-      );
+    } else {
+      // Master (Frost Wind, Level 76+): Challenging multistep, 3-digit division, and higher-range mental math
+      final roll = rng.nextInt(10);
+      if (roll < 5) {
+        // 50% multistep with expanded operands
+        return QuestionTemplate(
+          operation: Operation.mixedMultistep,
+          rangeA: const OperandRange(min: 3, max: 15),
+          rangeB: const OperandRange(min: 2, max: 12),
+          strategyTag: StrategyTag.procedural,
+          levelBand: 'master',
+          level: level,
+          stepCount: 2,
+        );
+      } else if (roll < 8) {
+        // 30% division (3-digit dividend: 15..50 * 4..12 = 60..600)
+        return QuestionTemplate(
+          operation: Operation.divide,
+          rangeA: const OperandRange(min: 15, max: 50),
+          rangeB: const OperandRange(min: 4, max: 12),
+          strategyTag: StrategyTag.procedural,
+          levelBand: 'master',
+          level: level,
+        );
+      } else {
+        // 20% multiplication (12..35 x 11..25)
+        return QuestionTemplate(
+          operation: Operation.multiply,
+          rangeA: const OperandRange(min: 12, max: 35),
+          rangeB: const OperandRange(min: 11, max: 25),
+          strategyTag: StrategyTag.procedural,
+          levelBand: 'master',
+          level: level,
+        );
+      }
     }
   }
 

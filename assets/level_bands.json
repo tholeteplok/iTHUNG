@@ -42,13 +42,23 @@
     },
     {
       "id": "expert",
-      "level_range": [51, null],
-      "operations": ["mixed_multistep"],
-      "digit_range": "3-digit",
+      "level_range": [51, 75],
+      "operations": ["mixed_multistep", "multiply", "divide"],
+      "digit_range": "2-3-digit",
       "timer_base_sec": 3.0,
-      "canvas_color": "#ECE7F8",
-      "canvas_color_end": "#DFD8EE",
-      "accent_color": "#7468B6"
+      "canvas_color": "#EFF4E8",
+      "canvas_color_end": "#DFEBCE",
+      "accent_color": "#4A7C36"
+    },
+    {
+      "id": "master",
+      "level_range": [76, null],
+      "operations": ["mixed_multistep", "divide", "multiply"],
+      "digit_range": "3-digit",
+      "timer_base_sec": 2.8,
+      "canvas_color": "#E6F3F7",
+      "canvas_color_end": "#D2E9F0",
+      "accent_color": "#2B829E"
     }
   ]
 }

@@ -49,7 +49,8 @@ class PublicProfile {
     if (currentLevel <= 15) return 'Golden Sun Canyon (Zona 2)';
     if (currentLevel <= 30) return 'Coral Sunset Ridge (Zona 3)';
     if (currentLevel <= 50) return 'Twilight Forest (Zona 4)';
-    return 'Cosmic Mystic Peak (Zona 5)';
+    if (currentLevel <= 75) return 'Highland Wind (Zona 5)';
+    return 'Frost Wind (Zona 6)';
   }
 
   factory PublicProfile.fromJson(Map<String, dynamic> json) {

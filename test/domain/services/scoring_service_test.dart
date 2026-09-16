@@ -113,6 +113,17 @@ void main() {
       );
       expect(expResult.breakdown.basePoints, equals(100));
       expect(expResult.breakdown.streakBonus, equals(50));
+
+      // Level 80 (Master): base = 140 -> max streak = 70
+      final mstResult = scoringService.computeRoundScore(
+        level: 80,
+        timeLeftMs: 0,
+        timeTotalMs: 4000,
+        streakCorrect: 15,
+        isCorrect: true,
+      );
+      expect(mstResult.breakdown.basePoints, equals(140));
+      expect(mstResult.breakdown.streakBonus, equals(70));
     });
   });
 

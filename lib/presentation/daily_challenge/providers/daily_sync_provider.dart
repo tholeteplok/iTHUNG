@@ -5,7 +5,6 @@ import '../../../domain/models/challenge_score_record.dart';
 import '../../../domain/models/daily_challenge.dart';
 import '../../../domain/repositories/repo_result.dart';
 import '../../game/providers/game_dependencies_provider.dart';
-import '../../game/providers/level_band_theme_provider.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../leaderboard/providers/leaderboard_provider.dart';
 import '../../profile/providers/account_status_provider.dart';
@@ -42,7 +41,9 @@ class DailySyncService {
 
       final dailyRepo = _ref.read(dailyChallengeRepositoryProvider);
       final leaderboardRepo = _ref.read(leaderboardRepositoryProvider);
-      final now = DateTime.now();
+
+      bool hasSyncedNewDaily = false;
+      final syncedDailyBands = <String>{};
 
       // 1. Sinkronkan seluruh antrean pending dari Hive
       final pendingRes = await dailyRepo.getPendingSubmissions();
@@ -59,39 +60,22 @@ class DailySyncService {
           if (submitRes is RepoSuccess) {
             final key = item.id ?? '${item.formattedDate}_${item.band}';
             await dailyRepo.markSubmissionSynced(key);
-            _ref.invalidate(leaderboardEntriesProvider(item.band));
+            hasSyncedNewDaily = true;
+            syncedDailyBands.add(item.band);
           }
         }
       }
 
-      // 2. Safeguard: Pastikan hasil lokal hari ini tersimpan di Firestore
-      final config = _ref.read(levelBandsConfigProvider).valueOrNull;
-      final currentLevel = profile?.currentLevel ?? 1;
-      final bandId = config?.bandForLevel(currentLevel).id ?? 'basic';
-      final todayResult = await dailyRepo.getResult(now, bandId);
-      if (todayResult is RepoSuccess<DailyChallengeResult?> &&
-          todayResult.value != null) {
-        final submitRes = await leaderboardRepo.submitDailyResult(
-          result: todayResult.value!,
-          username: username,
-          avatarId: profile?.avatarId,
-          totalScore: profile?.totalScore,
-          currentLevel: profile?.currentLevel,
-          totalXp: profile?.totalXp,
-        );
-        if (submitRes is RepoSuccess) {
-          final dateKey =
-              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-          await dailyRepo.markSubmissionSynced('${dateKey}_$bandId');
-          _ref.invalidate(leaderboardEntriesProvider(bandId));
-        }
+      // Invalidate hanya band harian yang benar-benar tersinkronisasi data baru
+      for (final band in syncedDailyBands) {
+        _ref.invalidate(leaderboardEntriesProvider(band));
       }
 
-      // 3. Sinkronkan rekor tantangan khusus (Speed Blitz & Math Marathon) dari Hive ke Firestore
+      // 2. Sinkronkan rekor tantangan khusus (Speed Blitz & Math Marathon) dari Hive ke Firestore
       final challengeRepo = _ref.read(challengeScoreRepositoryProvider);
       final challengeRecordsRes = await challengeRepo.getAllRecords();
+      bool challengeSubmitted = false;
       if (challengeRecordsRes is RepoSuccess<Map<String, ChallengeScoreRecord>>) {
-        bool challengeSubmitted = false;
         for (final entry in challengeRecordsRes.value.entries) {
           final record = entry.value;
           if (record.bestScore > 0) {
@@ -114,7 +98,10 @@ class DailySyncService {
         }
       }
 
-      _ref.invalidate(allTimeEntriesProvider);
+      // Invalidate All-Time HANYA jika ada skor tantangan/harian baru yang terkirim
+      if (hasSyncedNewDaily || challengeSubmitted) {
+        _ref.invalidate(allTimeEntriesProvider);
+      }
     } catch (_) {
       // Best-effort: kegagalan IO tidak menghalangi UI
     } finally {

@@ -46,7 +46,8 @@ class ScoringService {
     // - Basic (Level 6–15): Base 20 (2.0x)
     // - Intermediate (Level 16–30): Base 40 (4.0x)
     // - Advanced (Level 31–50): Base 70 (7.0x)
-    // - Expert (Level 51+): Base 100 (10.0x)
+    // - Expert (Level 51–75): Base 100 (10.0x)
+    // - Master (Level 76+): Base 140 (14.0x)
     final int basePoints = basePointsForLevel(level);
 
     // speed_bonus = round(base_points * 0.3 * (time_left / time_total))
@@ -139,7 +140,8 @@ class ScoringService {
   /// - Basic (Level 6–15): Base 20 (2.0x)
   /// - Intermediate (Level 16–30): Base 40 (4.0x)
   /// - Advanced (Level 31–50): Base 70 (7.0x)
-  /// - Expert (Level 51+): Base 100 (10.0x)
+  /// - Expert (Level 51–75): Base 100 (10.0x)
+  /// - Master (Level 76+): Base 140 (14.0x)
   static int basePointsForLevel(int level) {
     if (level <= 5) {
       return 10;
@@ -149,8 +151,10 @@ class ScoringService {
       return 40;
     } else if (level <= 50) {
       return 70;
-    } else {
+    } else if (level <= 75) {
       return 100;
+    } else {
+      return 140;
     }
   }
 

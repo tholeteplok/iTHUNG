@@ -35,11 +35,17 @@ void main() {
       expect(kIthungStages[6].endLevel, equals(35));
       expect(kIthungStages[6].assetPath, contains('twilight_canvas.jpg'));
 
-      // Cosmic (Band 5)
-      expect(kIthungStages[10].title, equals('Cosmic Mystic Peak'));
+      // Highland Wind (Band 5)
+      expect(kIthungStages[10].title, equals('Highland Wind'));
       expect(kIthungStages[10].startLevel, equals(51));
       expect(kIthungStages[10].endLevel, equals(55));
-      expect(kIthungStages[10].assetPath, contains('cosmic_canvas.jpg'));
+      expect(kIthungStages[10].assetPath, contains('Highland_canvas.jpg'));
+
+      // Frost Wind (Band 6)
+      expect(kIthungStages[15].title, equals('Frost Wind'));
+      expect(kIthungStages[15].startLevel, equals(76));
+      expect(kIthungStages[15].endLevel, equals(80));
+      expect(kIthungStages[15].assetPath, contains('frost_canvas.jpg'));
 
       // Calibrated anchors and BGM asset configuration
       for (final stage in kIthungStages) {
