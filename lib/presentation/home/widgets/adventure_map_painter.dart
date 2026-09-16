@@ -103,6 +103,14 @@ class AdventureMapPainter extends CustomPainter {
         const Color(0xFFECD2E4), // Twilight crystal dust path
         const Color(0xFFC798BC),
       ),
+      IthungBiome.highland => (
+        const Color(0xFFE4ECD9), // Alpine meadow path
+        const Color(0xFFACC296),
+      ),
+      IthungBiome.frost => (
+        const Color(0xFFDFF0F5), // Glacial frost path
+        const Color(0xFF9ECBD8),
+      ),
       IthungBiome.cosmic => (
         const Color(0xFFDCD7F9), // Obsidian glowing path
         const Color(0xFFABA1E8),
@@ -275,6 +283,14 @@ class WindingPathSegmentPainter extends CustomPainter {
       IthungBiome.twilight => (
         const Color(0xFFECD2E4),
         const Color(0xFFC798BC),
+      ),
+      IthungBiome.highland => (
+        const Color(0xFFE4ECD9),
+        const Color(0xFFACC296),
+      ),
+      IthungBiome.frost => (
+        const Color(0xFFDFF0F5),
+        const Color(0xFF9ECBD8),
       ),
       IthungBiome.cosmic => (
         const Color(0xFFDCD7F9),

@@ -72,8 +72,13 @@ void main() {
       expect(biomeForLevel(31), equals(IthungBiome.twilight));
       expect(biomeForLevel(50), equals(IthungBiome.twilight));
 
-      expect(biomeForLevel(51), equals(IthungBiome.cosmic));
-      expect(biomeForLevel(100), equals(IthungBiome.cosmic));
+      expect(biomeForLevel(51), equals(IthungBiome.highland));
+      expect(biomeForLevel(75), equals(IthungBiome.highland));
+
+      expect(biomeForLevel(76), equals(IthungBiome.frost));
+      expect(biomeForLevel(100), equals(IthungBiome.frost));
+
+      expect(biomeForLevel(101), equals(IthungBiome.cosmic));
     });
 
     testWidgets('BiomePropsFactory renders meadow props for level 1', (

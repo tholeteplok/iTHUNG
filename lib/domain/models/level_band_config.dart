@@ -76,7 +76,8 @@ class LevelBand {
         'basic' => 'Golden Sun Canyon',
         'intermediate' => 'Coral Sunset Ridge',
         'advanced' => 'Twilight Forest',
-        'expert' => 'Cosmic Mystic Peak',
+        'expert' => 'Highland Wind',
+        'master' => 'Frost Wind',
         _ => id.isEmpty
             ? 'Zona'
             : '${id[0].toUpperCase()}${id.substring(1)}',

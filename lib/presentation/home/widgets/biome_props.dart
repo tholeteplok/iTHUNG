@@ -9,7 +9,9 @@ enum IthungBiome {
   canyon, // Band 2 (L6–15): Golden Sun Canyon
   ridge, // Band 3 (L16–30): Coral Sunset Ridge
   twilight, // Band 4 (L31–50): Berry Twilight Forest
-  cosmic, // Band 5 (L51+): Cosmic Hyper Peak
+  highland, // Band 5 (L51–75): Highland Wind
+  frost, // Band 6 (L76–100): Frost Wind
+  cosmic, // Band 7 (L101+): Cosmic Hyper Peak (Reserved)
 }
 
 /// Helper untuk menentukan bioma berdasarkan nomor level.
@@ -18,6 +20,8 @@ IthungBiome biomeForLevel(int level) {
   if (level <= 15) return IthungBiome.canyon;
   if (level <= 30) return IthungBiome.ridge;
   if (level <= 50) return IthungBiome.twilight;
+  if (level <= 75) return IthungBiome.highland;
+  if (level <= 100) return IthungBiome.frost;
   return IthungBiome.cosmic;
 }
 
@@ -62,6 +66,18 @@ class BiomePropsFactory extends StatelessWidget {
         1 => const TwilightMysticTree(),
         2 => const TwilightLantern(),
         _ => const TwilightMushroom(isDouble: true),
+      },
+      IthungBiome.highland => switch (variantIndex) {
+        0 => const MeadowPineTree(),
+        1 => const RidgeAutumnShrub(),
+        2 => const MeadowRoundTree(),
+        _ => const MeadowWoodenFence(),
+      },
+      IthungBiome.frost => switch (variantIndex) {
+        0 => const CosmicCrystalObelisk(),
+        1 => const CosmicRuneStone(),
+        2 => const TwilightMysticTree(),
+        _ => const CosmicCrystalObelisk(isAlternate: true),
       },
       IthungBiome.cosmic => switch (variantIndex) {
         0 => const CosmicCrystalObelisk(),
