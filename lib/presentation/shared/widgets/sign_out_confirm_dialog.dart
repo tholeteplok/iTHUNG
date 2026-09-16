@@ -61,7 +61,7 @@ class SignOutConfirmDialog extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
+          variant: ChunkyCardVariant.vanillaSoft,
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,

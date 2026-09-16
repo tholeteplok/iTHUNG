@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -18,6 +20,9 @@ class AnswerGrid extends StatefulWidget {
     required this.shuffledIndices,
     required this.onAnswerSelected,
     this.enabled = true,
+    this.selectedSlot,
+    this.correctSlot,
+    this.showResult = false,
   });
 
   final Question question;
@@ -25,6 +30,9 @@ class AnswerGrid extends StatefulWidget {
   final List<int> shuffledIndices;
   final ValueChanged<int> onAnswerSelected;
   final bool enabled;
+  final int? selectedSlot;
+  final int? correctSlot;
+  final bool showResult;
 
   @override
   State<AnswerGrid> createState() => _AnswerGridState();
@@ -90,19 +98,60 @@ class _AnswerGridState extends State<AnswerGrid> {
     final valueIndex = widget.shuffledIndices[slotIndex];
     final displayValue = valueIndex < values.length ? values[valueIndex] : 0;
 
-    return ChunkyButton(
+    final isCorrectSlot =
+        widget.showResult && widget.correctSlot == slotIndex;
+    final isWrongSlot = widget.showResult &&
+        widget.selectedSlot == slotIndex &&
+        widget.correctSlot != slotIndex;
+
+    final bg = isCorrectSlot
+        ? AppTheme.colorSage
+        : isWrongSlot
+            ? AppTheme.colorCoral
+            : AppTheme.colorVanillaCard;
+    final fg = (isCorrectSlot || isWrongSlot)
+        ? Colors.white
+        : AppTheme.colorEspresso;
+
+    final button = ChunkyButton(
       enabled: widget.enabled && !_hasTapped,
       onPressed: () => _handleTap(slotIndex),
-      backgroundColor: AppTheme.colorWoodPlank,
+      backgroundColor: bg,
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Text(
         '$displayValue',
         style: AppTheme.answerButtonStyle(
           fontSize: 28,
           fontWeight: FontWeight.w800,
-          color: AppTheme.colorEspresso,
+          color: fg,
         ),
       ),
+    );
+
+    // Stagger entry 50ms per slot ala game.
+    final staggered = TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.7, end: 1.0),
+      duration: Duration(milliseconds: 180 + slotIndex * 50),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: button,
+    );
+
+    if (!isWrongSlot) return staggered;
+
+    // Shake untuk jawaban salah.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 320),
+      builder: (context, t, child) {
+        final dx = (t < 1.0) ? 8 * (1 - t) * sin(t * 18.84) : 0.0;
+        return Transform.translate(
+          offset: Offset(dx, 0),
+          child: child,
+        );
+      },
+      child: staggered,
     );
   }
 }

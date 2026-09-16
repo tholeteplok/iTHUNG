@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
@@ -26,28 +27,46 @@ class AppErrorBanner extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: AppTheme.colorCoral.withValues(alpha: 0.12),
+        color: AppTheme.colorVanillaCard,
         borderRadius: BorderRadius.circular(AppTokens.radiusButton),
         border: Border.all(
           color: AppTheme.colorCoral,
-          width: AppTokens.borderWidthDefault,
+          width: AppTokens.borderWidthSubtle,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.colorCoral.withValues(alpha: 0.12),
+            offset: const Offset(0, 3),
+            blurRadius: 6,
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: AppTheme.colorCoral,
-            size: 20,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppTheme.colorDangerSoft,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppTheme.colorCoral,
+                width: AppTokens.borderWidthSubtle,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: AppTheme.colorCoral,
+              size: 16,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: GoogleFonts.quicksand(
                 color: AppTheme.colorEspresso,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
               ),

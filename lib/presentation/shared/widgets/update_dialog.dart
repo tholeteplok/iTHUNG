@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,8 +7,10 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/services/update_service.dart';
+import '../providers/update_download_provider.dart';
 import 'chunky_button.dart';
 import 'chunky_card.dart';
+import 'keystore_transition_dialog.dart';
 
 /// Membuka dialog notifikasi pembaruan aplikasi bergaya Cozy Woodwork.
 Future<void> showUpdateNotificationDialog({
@@ -47,8 +48,41 @@ Future<void> showUpdateProgressDialog({
   );
 }
 
+/// Membuka dialog prompt instalasi ketika unduhan selesai di latar belakang.
+Future<void> showUpdateInstallPromptDialog({
+  required BuildContext context,
+  required AppUpdateInfo info,
+}) async {
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) => UpdateInstallPromptDialog(info: info),
+  );
+}
+
+/// Memeriksa kecocokan sertifikat dan menjalankan instalasi atau transisi keystore
+Future<void> handleAppInstall({
+  required BuildContext context,
+  required WidgetRef ref,
+  required AppUpdateInfo info,
+}) async {
+  final result =
+      await ref.read(updateDownloadProvider.notifier).triggerInstall();
+  if (result == InstallResult.keystoreMismatch && context.mounted) {
+    final downloadState = ref.read(updateDownloadProvider);
+    final ver = info.latestVersion;
+    final fileName = 'iTHUNG-v$ver.apk';
+    await showKeystoreTransitionDialog(
+      context: context,
+      info: info,
+      exportFileName: fileName,
+      publicExportPath: downloadState.publicExportPath,
+    );
+  }
+}
+
 /// Dialog notifikasi rilis versi terbaru iTHUNG.
-class UpdateNotificationDialog extends StatelessWidget {
+class UpdateNotificationDialog extends ConsumerWidget {
   const UpdateNotificationDialog({
     super.key,
     required this.info,
@@ -61,7 +95,10 @@ class UpdateNotificationDialog extends StatelessWidget {
   final VoidCallback? onLater;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final downloadState = ref.watch(updateDownloadProvider);
+    final isAlreadySaved = downloadState.isCompleted &&
+        downloadState.info?.latestVersion == info.latestVersion;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -69,7 +106,7 @@ class UpdateNotificationDialog extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
+          variant: ChunkyCardVariant.vanillaSoft,
           padding: const EdgeInsets.fromLTRB(22, 32, 22, 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -157,14 +194,27 @@ class UpdateNotificationDialog extends StatelessWidget {
               _buildFriendlyReleaseNotes(info.releaseNotes),
               const SizedBox(height: 18),
 
-              // Tombol Aksi Utama (Perbarui Sekarang)
+              // Tombol Aksi Utama (Perbarui Sekarang / Pasang Tersimpan)
               ChunkyButton(
-                onPressed: onUpdate,
+                onPressed: () async {
+                  if (isAlreadySaved) {
+                    Navigator.pop(context);
+                    await handleAppInstall(
+                      context: context,
+                      ref: ref,
+                      info: info,
+                    );
+                  } else {
+                    onUpdate();
+                  }
+                },
                 backgroundColor: AppTheme.colorSage,
                 width: double.infinity,
-                child: const Text(
-                  'Perbarui Sekarang',
-                  style: TextStyle(
+                child: Text(
+                  isAlreadySaved
+                      ? 'Pasang Pembaruan 🚀 (Tersimpan)'
+                      : 'Perbarui Sekarang',
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -330,114 +380,13 @@ class UpdateProgressDialog extends ConsumerStatefulWidget {
 }
 
 class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
-  double _downloadProgress = 0.0;
-  int _receivedBytes = 0;
-  late int _totalBytes;
-  String _statusMessage = 'Menghubungi server rilis...';
-  String? _errorMessage;
-  int _lastUiUpdateTime = 0;
-  bool _isDownloading = false;
-
   @override
   void initState() {
     super.initState();
-    _totalBytes = widget.info.downloadSizeBytes;
-    _initAndStartDownload();
-  }
-
-  Future<void> _initAndStartDownload() async {
-    try {
-      final updateService = ref.read(updateServiceProvider);
-      final existing =
-          await updateService.getDownloadedApkBytes(widget.info.latestVersion);
-      if (existing > 0 && mounted) {
-        setState(() {
-          _receivedBytes = existing;
-          if (_totalBytes > 0) {
-            _downloadProgress = (existing / _totalBytes).clamp(0.0, 1.0);
-            final pct = (_downloadProgress * 100).toInt();
-            _statusMessage = 'Melanjutkan unduhan $pct%...';
-          }
-        });
-      }
-    } catch (_) {}
-    _startDownload();
-  }
-
-  Future<void> _startDownload() async {
-    if (_isDownloading) return;
-    try {
-      final updateService = ref.read(updateServiceProvider);
-      if (mounted) {
-        setState(() {
-          _isDownloading = true;
-          _errorMessage = null;
-          _statusMessage = _receivedBytes > 0
-              ? 'Melanjutkan unduhan...'
-              : 'Mengunduh pembaruan...';
-        });
-      }
-
-      final file = await updateService.downloadApk(
-        downloadUrl: widget.info.downloadUrl,
-        version: widget.info.latestVersion,
-        expectedTotalBytes: widget.info.downloadSizeBytes,
-        onProgress: (progress, received, total) {
-          if (!mounted) return;
-
-          final now = DateTime.now().millisecondsSinceEpoch;
-          _receivedBytes = math.max(_receivedBytes, received);
-          if (total > 0) {
-            _totalBytes = total;
-          }
-          if (progress > 0) {
-            _downloadProgress = math.max(_downloadProgress, progress);
-          }
-
-          // Throttle pembaruan UI ~60ms agar performa tetap 60 FPS
-          final shouldUpdateUi =
-              (now - _lastUiUpdateTime > 60) || progress >= 1.0;
-          if (shouldUpdateUi) {
-            _lastUiUpdateTime = now;
-            setState(() {
-              if (_downloadProgress >= 1.0) {
-                _statusMessage = 'Memverifikasi paket instalasi...';
-              } else if (_downloadProgress > 0) {
-                final pct = (_downloadProgress * 100).toInt();
-                _statusMessage = 'Mengunduh $pct%...';
-              }
-            });
-          }
-        },
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _isDownloading = false;
-        _downloadProgress = 1.0;
-        _statusMessage = 'Membuka Penginstal Paket Android...';
-      });
-
-      final installed = await updateService.installApk(file.path);
-      if (!installed && mounted) {
-        setState(() {
-          _errorMessage =
-              'Tidak dapat membuka penginstal secara otomatis. Silakan buka file di folder unduhan atau perbarui via browser.';
-        });
-      } else if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        final errText = e.toString().replaceFirst('Exception: ', '').trim();
-        setState(() {
-          _isDownloading = false;
-          _errorMessage = errText;
-          _statusMessage = 'Unduhan dijeda';
-        });
-      }
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(updateDownloadProvider.notifier).maximize();
+      ref.read(updateDownloadProvider.notifier).startDownload(widget.info);
+    });
   }
 
   Future<void> _openFallbackUrl() async {
@@ -447,9 +396,25 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final receivedMb = (_receivedBytes / (1024 * 1024)).toStringAsFixed(1);
-    final totalMb = _totalBytes > 0
-        ? (_totalBytes / (1024 * 1024)).toStringAsFixed(1)
+    final downloadState = ref.watch(updateDownloadProvider);
+    final receivedBytes = downloadState.receivedBytes;
+    final totalBytes = downloadState.totalBytes;
+    final progress = downloadState.progress;
+    final isDownloading = downloadState.isDownloading;
+    final isCompleted = downloadState.isCompleted;
+    final errorMessage = downloadState.errorMessage;
+    final statusMessage = downloadState.statusMessage.isNotEmpty
+        ? downloadState.statusMessage
+        : 'Menghubungi server rilis...';
+
+    final receivedMb = (receivedBytes / (1024 * 1024)).toStringAsFixed(1);
+    final effectiveTotalBytes = totalBytes > 0
+        ? totalBytes
+        : (widget.info.downloadSizeBytes > 0
+            ? widget.info.downloadSizeBytes
+            : 0);
+    final totalMb = effectiveTotalBytes > 0
+        ? (effectiveTotalBytes / (1024 * 1024)).toStringAsFixed(1)
         : '?';
 
     return Dialog(
@@ -459,23 +424,45 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
-          padding: const EdgeInsets.fromLTRB(22, 30, 22, 22),
+          variant: ChunkyCardVariant.vanillaSoft,
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Mengunduh iTHUNG',
-                style: GoogleFonts.quicksand(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.colorEspresso,
-                ),
-                textAlign: TextAlign.center,
+              // Header dengan tombol minimize
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 32),
+                  Expanded(
+                    child: Text(
+                      isCompleted ? 'Unduhan Selesai' : 'Mengunduh iTHUNG',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.colorEspresso,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Minimalkan',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(
+                      Icons.close_fullscreen_rounded,
+                      size: 20,
+                      color: AppTheme.colorTaupe,
+                    ),
+                    onPressed: () {
+                      ref.read(updateDownloadProvider.notifier).minimize();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
-                _statusMessage,
+                statusMessage,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -500,14 +487,16 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final fillWidth =
-                        constraints.maxWidth * _downloadProgress.clamp(0.0, 1.0);
+                        constraints.maxWidth * progress.clamp(0.0, 1.0);
                     return Align(
                       alignment: Alignment.centerLeft,
                       child: Container(
                         width: fillWidth,
                         height: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppTheme.colorHoney,
+                          color: isCompleted
+                              ? AppTheme.colorSage
+                              : AppTheme.colorHoney,
                           borderRadius:
                               BorderRadius.circular(AppTokens.radiusPill),
                         ),
@@ -528,8 +517,79 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                 ),
               ),
 
+              // Tombol Aksi saat Selesai
+              if (isCompleted) ...[
+                const SizedBox(height: 16),
+                ChunkyButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await handleAppInstall(
+                      context: context,
+                      ref: ref,
+                      info: widget.info,
+                    );
+                  },
+                  backgroundColor: AppTheme.colorSage,
+                  width: double.infinity,
+                  child: const Text(
+                    'Pasang Sekarang 🚀',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: () {
+                    ref.read(updateDownloadProvider.notifier).minimize();
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    'Simpan & Pasang Nanti',
+                    style: TextStyle(
+                      color: AppTheme.colorTaupe,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ]
+              // Tombol Aksi saat Mengunduh (Bisa Minimalkan & Lanjut Main)
+              else if (errorMessage == null) ...[
+                const SizedBox(height: 16),
+                ChunkyButton(
+                  onPressed: () {
+                    ref.read(updateDownloadProvider.notifier).minimize();
+                    Navigator.pop(context);
+                  },
+                  backgroundColor: AppTheme.colorHoney,
+                  width: double.infinity,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_downward_rounded,
+                          size: 16, color: Colors.white),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Minimalkan & Lanjut Main',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Pesan Error jika Gagal / Terputus
-              if (_errorMessage != null) ...[
+              if (errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding:
@@ -543,7 +603,7 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                     ),
                   ),
                   child: Text(
-                    _errorMessage!,
+                    errorMessage,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -556,7 +616,11 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                 const SizedBox(height: 14),
                 ChunkyButton(
                   key: const Key('btn_resume_download'),
-                  onPressed: _isDownloading ? null : _startDownload,
+                  onPressed: isDownloading
+                      ? null
+                      : () => ref
+                          .read(updateDownloadProvider.notifier)
+                          .startDownload(widget.info),
                   backgroundColor: AppTheme.colorSage,
                   width: double.infinity,
                   child: const Text(
@@ -601,6 +665,106 @@ class _UpdateProgressDialogState extends ConsumerState<UpdateProgressDialog> {
                   ],
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog konfirmasi instalasi ketika unduhan selesai di latar belakang.
+class UpdateInstallPromptDialog extends ConsumerWidget {
+  const UpdateInstallPromptDialog({super.key, required this.info});
+
+  final AppUpdateInfo info;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: ChunkyCard(
+          variant: ChunkyCardVariant.vanillaSoft,
+          padding: const EdgeInsets.fromLTRB(22, 30, 22, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.colorSage.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: AppTheme.colorSage.withValues(alpha: 0.40),
+                    width: 2,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    AppIcons.rocket,
+                    color: AppTheme.colorSage,
+                    size: 28,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Pembaruan Siap Dipasang! 🚀',
+                style: GoogleFonts.quicksand(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.colorEspresso,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Versi ${info.latestVersion} telah selesai diunduh dan tersimpan di perangkat.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.colorTaupe,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ChunkyButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await handleAppInstall(
+                    context: context,
+                    ref: ref,
+                    info: info,
+                  );
+                },
+                backgroundColor: AppTheme.colorSage,
+                width: double.infinity,
+                child: const Text(
+                  'Pasang Sekarang',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Nanti Saja',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.colorTaupe,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

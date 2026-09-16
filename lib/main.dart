@@ -19,6 +19,7 @@ import 'presentation/profile/widgets/public_profile_screen.dart';
 import 'presentation/results/widgets/results_screen.dart';
 import 'presentation/settings/widgets/settings_screen.dart';
 import 'presentation/shared/widgets/app_shell.dart';
+import 'presentation/shared/widgets/in_app_update_overlay.dart';
 import 'presentation/splash/widgets/splash_screen.dart';
 
 void main() async {
@@ -54,7 +55,11 @@ void main() async {
 /// - Guard redirect pada `/results` mencegah akses langsung tanpa hasil sesi
 /// - Mendukung deep link `/daily`
 /// - SplashScreen sebagai rute awal sebelum memasuki ShellRoute
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 final GoRouter _router = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(
@@ -138,6 +143,13 @@ class IthungApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: _router,
+      builder: (context, child) => InAppUpdateOverlay(
+        currentLocation: () =>
+            _router.routerDelegate.currentConfiguration.uri.path,
+        routerListenable: _router.routerDelegate,
+        navigatorKey: rootNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

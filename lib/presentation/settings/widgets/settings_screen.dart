@@ -102,7 +102,7 @@ class _AudioCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ChunkyCard(
-      variant: ChunkyCardVariant.wood,
+      variant: ChunkyCardVariant.vanillaSoft,
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,7 +277,7 @@ class _GameplayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChunkyCard(
-      variant: ChunkyCardVariant.wood,
+      variant: ChunkyCardVariant.vanillaSoft,
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,7 +508,7 @@ class _AboutCardState extends ConsumerState<_AboutCard> {
     final updateService = ref.watch(updateServiceProvider);
 
     return ChunkyCard(
-      variant: ChunkyCardVariant.wood,
+      variant: ChunkyCardVariant.vanillaSoft,
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [

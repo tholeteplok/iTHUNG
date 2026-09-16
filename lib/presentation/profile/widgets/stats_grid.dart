@@ -86,7 +86,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChunkyCard(
-      variant: ChunkyCardVariant.woodBoard,
+      variant: ChunkyCardVariant.vanillaSoft,
       borderRadius: AppTokens.radiusCard,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       child: Column(

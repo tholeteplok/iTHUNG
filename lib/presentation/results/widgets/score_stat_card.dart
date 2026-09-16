@@ -21,7 +21,7 @@ class ScoreStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChunkyCard(
-      variant: ChunkyCardVariant.wood,
+      variant: ChunkyCardVariant.vanillaSoft,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,

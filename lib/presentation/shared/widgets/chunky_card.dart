@@ -6,7 +6,11 @@ import '../../../core/theme/app_tokens.dart';
 /// Varian visual kartu terpusat untuk aplikasi iTHUNG.
 enum ChunkyCardVariant {
   /// Kartu vanilla cream hangat untuk kontainer umum non-game.
+  /// Default lembut ala referensi Tally: tanpa border kayu tebal.
   vanilla,
+
+  /// Alias eksplisit untuk kartu lembut non-game (sama seperti vanilla).
+  vanillaSoft,
 
   /// Lembaran kertas putih bersih menggantung dengan klip/gantungan binder kayu di bagian atas (khusus soal gameplay).
   hangingPaper,
@@ -60,12 +64,15 @@ class ChunkyCard extends StatelessWidget {
     final effectivePadding = padding ?? const EdgeInsets.all(20);
 
     // Resolusi warna dan properti sesuai varian (Cozy Warm Stationery & Woodwork)
+    // vanilla/vanillaSoft = lembut ala Tally (non-game default).
+    // wood/woodBoard = taktil tegas, hanya untuk momen game/CTA.
     final effectiveBg = backgroundColor ??
         switch (variant) {
           ChunkyCardVariant.hangingPaper => AppTheme.colorPaperWhite,
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
             AppTheme.colorWoodPlank,
-          ChunkyCardVariant.vanilla => AppTheme.colorWoodPlank,
+          ChunkyCardVariant.vanilla || ChunkyCardVariant.vanillaSoft =>
+            AppTheme.colorVanillaCard,
         };
 
     final effectiveBorderColor = borderColor ??
@@ -73,7 +80,8 @@ class ChunkyCard extends StatelessWidget {
           ChunkyCardVariant.hangingPaper => const Color(0xFFEADBCE),
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
             AppTheme.colorWoodMedium,
-          ChunkyCardVariant.vanilla => AppTheme.colorWoodMedium,
+          ChunkyCardVariant.vanilla || ChunkyCardVariant.vanillaSoft =>
+            AppTheme.colorTranslucentBorder,
         };
 
     final effectiveBorderRadius = borderRadius ?? AppTokens.radiusContainer;
@@ -82,6 +90,8 @@ class ChunkyCard extends StatelessWidget {
         switch (variant) {
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
             AppTokens.borderWidthWood,
+          ChunkyCardVariant.vanilla || ChunkyCardVariant.vanillaSoft =>
+            AppTokens.borderWidthSubtle,
           _ => AppTokens.borderWidthDefault,
         };
 
@@ -91,7 +101,7 @@ class ChunkyCard extends StatelessWidget {
             ChunkyShadow.paper(AppTheme.colorWoodDark),
           ChunkyCardVariant.wood || ChunkyCardVariant.woodBoard =>
             ChunkyShadow.wood(AppTheme.colorWoodDark),
-          ChunkyCardVariant.vanilla =>
+          ChunkyCardVariant.vanilla || ChunkyCardVariant.vanillaSoft =>
             ChunkyShadow.container(AppTheme.colorWoodDark),
         };
 

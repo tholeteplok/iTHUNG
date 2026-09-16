@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../domain/models/level_score_record.dart';
 import '../../../domain/models/session_result.dart';
 import '../../../domain/repositories/repo_result.dart';
 import '../../../domain/services/scoring_service.dart';
 import '../../home/providers/level_stars_provider.dart';
+import '../../home/providers/level_transition_provider.dart';
 import '../../home/providers/player_profile_provider.dart';
 import '../../leaderboard/providers/leaderboard_provider.dart';
 import '../../profile/providers/account_status_provider.dart';
@@ -84,6 +86,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
     // Dengarkan saat sesi selesai untuk navigasi otomatis ke /results
     ref.listen<GameSessionState>(gameSessionProvider(_args), (prev, next) {
+      if (next is FeedbackState) {
+        final haptic = ref.read(hapticServiceProvider);
+        if (next.isCorrect) {
+          haptic.mediumImpact();
+        } else {
+          haptic.heavyImpact();
+        }
+      }
       if (next is SessionEndedState) {
         final previousProfile = ref.read(playerProfileProvider).valueOrNull;
         final previousLevel = previousProfile?.currentLevel ?? 1;
@@ -123,13 +133,18 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               context.go('/results', extra: enrichedResult);
             }
 
-            final accountState =
-                ref.read(accountStatusProvider).valueOrNull;
-            final username = accountState?.username;
-            if (username == null || username.isEmpty) return;
             final latest =
                 ref.read(playerProfileProvider).valueOrNull;
             if (latest == null) return;
+
+            final accountState =
+                ref.read(accountStatusProvider).valueOrNull;
+            final username = accountState?.username ?? latest.username;
+            if (username == null || username.trim().length < 4) return;
+
+            final authRepo = ref.read(authRepositoryProvider);
+            final isAuthed = (accountState?.hasVerifiedSession ?? false) ||
+                authRepo.isLoggedIn;
 
             if (deltaResult.scoreDelta > 0) {
               // Injeksi update optimistik seketika ke papan peringkat all-time
@@ -143,6 +158,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             final isRecordBroken = deltaResult.scoreDelta > 0;
             final isFirstPlay = deltaResult.isFirstPlay;
             final didLevelUp = latest.currentLevel > previousLevel;
+            if (didLevelUp) {
+              ref.read(levelTransitionProvider.notifier).triggerTransition(
+                    fromLevel: previousLevel,
+                    toLevel: latest.currentLevel,
+                    isZoneTransition:
+                        (latest.currentLevel - 1) ~/ 5 > (previousLevel - 1) ~/ 5,
+                  );
+            }
             final newStars = ScoringService.calculateStars(next.result.accuracy);
             final didEarnNewStars = newStars > previousStars;
 
@@ -150,7 +173,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             // Hanya bakar kuota Firestore jika ada pencapaian prestasi baru yang signifikan
             // (pecah rekor skor, main pertama kali, naik level, atau tambah bintang).
             // Replay biasa yang tidak memecahkan rekor = 0 write ke Firestore.
-            if (isRecordBroken || isFirstPlay || didLevelUp || didEarnNewStars) {
+            if (isAuthed &&
+                (isRecordBroken || isFirstPlay || didLevelUp || didEarnNewStars)) {
               // Ambil seluruh rekor level lokal untuk disinkronkan ke cloud
               final scoreRepo = ref.read(levelScoreRepositoryProvider);
               final recordsResult = await scoreRepo.getAllRecords();
@@ -227,11 +251,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // HUD loop: Level • Soal x/10 • Skor • Streak
+                      _buildGameHud(sessionState),
+                      const SizedBox(height: 12),
+
                       // Countdown Progress Bar
                       _buildTimerBar(sessionState, accentColor),
                       const SizedBox(height: 24),
 
-                      // Area Tampilan Soal
+                      // Area Tampilan Soal (pop transisi)
                       _buildQuestionArea(sessionState),
                       const SizedBox(height: 28),
 
@@ -248,10 +276,70 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 FeedbackOverlay(
                   isCorrect: sessionState.isCorrect,
                   roundScore: sessionState.roundScore,
+                  isTimeout: sessionState.selectedAnswer == null,
+                  streak: ref
+                      .read(gameSessionProvider(_args).notifier)
+                      .currentStreak,
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGameHud(GameSessionState state) {
+    final notifier = ref.read(gameSessionProvider(_args).notifier);
+    final round = notifier.currentRound;
+    final total = _args.totalRounds;
+    final score = notifier.runningScore;
+    final streak = switch (state) {
+      ActiveState(:final streakCorrect) => streakCorrect,
+      FeedbackState() => notifier.currentStreak,
+      PausedState(:final pausedFrom) => pausedFrom.streakCorrect,
+      _ => notifier.currentStreak,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.colorVanillaCard,
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+        border: Border.all(
+          color: AppTheme.colorTranslucentBorder,
+          width: AppTokens.borderWidthSubtle,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Lv ${widget.level} • $round/$total',
+            style: AppTheme.statNumberStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.colorEspresso,
+            ),
+          ),
+          Text(
+            'Skor $score',
+            style: AppTheme.statNumberStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.colorEspresso,
+            ),
+          ),
+          Text(
+            streak >= 2 ? '🔥x$streak' : '🔥-',
+            style: AppTheme.statNumberStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: streak >= 2
+                  ? AppTheme.colorCoral
+                  : AppTheme.colorTaupe,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -273,16 +361,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       );
     }
 
-    // Default placeholder bar saat ShowQuestion / Feedback
+    // Placeholder bar saat ShowQuestion / Feedback / Paused:
+    // tetap pakai tint band agar tidak terlihat freeze putih.
     return Container(
       width: double.infinity,
       height: 16.0,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: accentColor.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(AppTokens.radiusBar),
         border: Border.all(
-          color: const Color(0xFF232B1E),
-          width: AppTokens.borderWidthDefault,
+          color: AppTheme.colorTranslucentBorderFocus,
+          width: AppTokens.borderWidthSubtle,
         ),
       ),
     );
@@ -299,8 +388,25 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
     if (question == null) return const SizedBox.shrink();
 
-    return QuestionDisplay(key: ValueKey(question.id), question: question);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      switchInCurve: Curves.easeOutBack,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) => ScaleTransition(
+        scale: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.15, 0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: QuestionDisplay(key: ValueKey(question.id), question: question),
+    );
   }
+
+  int _correctSlot(List<int> shuffled) => shuffled.indexOf(0);
 
   Widget _buildAnswerArea(GameSessionState state) {
     if (state is ActiveState) {
@@ -323,6 +429,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         distractors: state.distractors,
         shuffledIndices: state.shuffledIndices,
         enabled: false,
+        selectedSlot: state.selectedAnswer,
+        correctSlot: _correctSlot(state.shuffledIndices),
+        showResult: true,
         onAnswerSelected: (_) {},
       );
     }

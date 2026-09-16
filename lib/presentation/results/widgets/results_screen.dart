@@ -12,11 +12,14 @@ import '../../settings/providers/settings_provider.dart';
 import '../../shared/widgets/chunky_button.dart';
 import '../../shared/widgets/chunky_card.dart';
 import 'animated_star_rating.dart';
+import 'celebration_star_burst.dart';
 import 'score_stat_card.dart';
+import 'zone_unlocked_dialog.dart';
+import '../../home/widgets/home_screen.dart';
 
 /// Layar rangkuman hasil sesi permainan (ResultsScreen).
 ///
-/// Menampilkan skor total, statistik akurasi, rincian XP, dan banner streak.
+/// Menampilkan selebrasi level up bintang pecah, skor total, statistik akurasi, rincian XP, dan banner streak.
 class ResultsScreen extends ConsumerStatefulWidget {
   const ResultsScreen({super.key, required this.result});
 
@@ -28,15 +31,74 @@ class ResultsScreen extends ConsumerStatefulWidget {
 
 class _ResultsScreenState extends ConsumerState<ResultsScreen> {
   SessionResult get result => widget.result;
+  late bool _showCelebration;
+
+  /// Kerudung putih: menahan frame putih terakhir whiteout lalu
+  /// memudar perlahan agar tidak pop ke warna canvas.
+  double _veilOpacity = 0.0;
 
   @override
   void initState() {
     super.initState();
+    final earnedStars = ScoringService.calculateStars(result.accuracy);
+    _showCelebration = earnedStars >= 1;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && !_showCelebration) {
         ref.read(sfxServiceProvider).play(SfxType.levelUp);
       }
     });
+  }
+
+  void _finishCelebration() {
+    if (!mounted || !_showCelebration) return;
+    setState(() {
+      _showCelebration = false;
+      // Mulai dari putih penuh (menyambung frame akhir whiteout),
+      // lalu memudar perlahan memunculkan result screen.
+      _veilOpacity = 1.0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _veilOpacity = 0.0);
+    });
+
+    // Cek apakah pemain menyelesaikan level puncak zona (kelipatan 5, misal Level 5 -> membuka Zona 2)
+    final earnedStars = ScoringService.calculateStars(result.accuracy);
+    if (earnedStars >= 1 && result.levelReached % 5 == 0) {
+      final nextStageIndex = result.levelReached ~/ 5;
+      if (nextStageIndex < kIthungStages.length) {
+        final nextStage = kIthungStages[nextStageIndex];
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            showGeneralDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              barrierLabel: 'Zona baru terbuka',
+              barrierColor:
+                  AppTheme.colorEspresso.withValues(alpha: 0.55),
+              transitionDuration: const Duration(milliseconds: 300),
+              pageBuilder: (ctx, anim, secondaryAnim) => ZoneUnlockedDialog(
+                zoneName: nextStage.title,
+                zoneIcon: nextStage.icon,
+                zoneLevelRange: nextStage.subtitle,
+                onContinue: () {
+                  Navigator.of(ctx).pop();
+                },
+              ),
+              transitionBuilder: (ctx, anim, _, child) {
+                final scale = Tween<double>(begin: 0.9, end: 1.0)
+                    .chain(CurveTween(curve: Curves.easeOutBack))
+                    .animate(anim);
+                return Transform.scale(
+                  scale: scale.value,
+                  child: Opacity(opacity: anim.value, child: child),
+                );
+              },
+            );
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -56,32 +118,56 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
     final scoreDelta = result.scoreDelta ?? (isReplay ? 0 : result.totalScore);
     final isNewRecord = isReplay && scoreDelta > 0;
 
-    return Scaffold(
-      backgroundColor: canvasColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Judul Halaman
-              Text(
-                'Sesi Selesai!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.darkBorder,
-                ),
-              ),
-              const SizedBox(height: 10),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+      color: canvasColor,
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // 1. Tampilan Hasil & Statistik Utama (muncul perlahan
+          // setelah layar memutih — bukan cut langsung).
+          AnimatedOpacity(
+            opacity: _showCelebration ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            child: IgnorePointer(
+              ignoring: _showCelebration,
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Judul Halaman
+                      Text(
+                        earnedStars >= 3
+                            ? 'Luar Biasa!'
+                            : earnedStars == 2
+                                ? 'Level Tuntas!'
+                                : earnedStars == 1
+                                    ? 'Bagus, Lanjut!'
+                                    : 'Hampir! Coba Lagi!',
+                        textAlign: TextAlign.center,
+                        style:
+                            Theme.of(context).textTheme.displayMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.darkBorder,
+                                ),
+                      ),
+                      const SizedBox(height: 10),
 
-              // Animasi Perolehan Bintang
-              AnimatedStarRating(starCount: earnedStars),
-              const SizedBox(height: 14),
+                      // Animasi Perolehan Bintang
+                      AnimatedStarRating(starCount: earnedStars),
+                      const SizedBox(height: 14),
 
               // Banner Streak Maintained
               ChunkyCard(
-                variant: ChunkyCardVariant.wood,
+                variant: ChunkyCardVariant.vanillaSoft,
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
                   horizontal: 16,
@@ -109,7 +195,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
 
               // Kartu Skor Total
               ChunkyCard(
-                variant: ChunkyCardVariant.wood,
+                variant: ChunkyCardVariant.vanillaSoft,
                 padding: const EdgeInsets.symmetric(
                   vertical: 20,
                   horizontal: 20,
@@ -224,7 +310,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
 
               // Kartu Rincian XP
               ChunkyCard(
-                variant: ChunkyCardVariant.wood,
+                variant: ChunkyCardVariant.vanillaSoft,
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,21 +344,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
                     _buildXpRow(
                       context,
                       label:
-                          '${result.xpBreakdown.distinctFactsPracticed} Fakta Dilatih',
+                          '${result.xpBreakdown.distinctFactsPracticed} Soal Dijawab',
                       xp: '+${result.xpBreakdown.distinctFactsPracticed * 2} XP',
                     ),
                     const SizedBox(height: 8),
                     _buildXpRow(
                       context,
                       label:
-                          '${result.xpBreakdown.factsMovedUpABox} Fakta Naik Tingkat Box',
+                          '${result.xpBreakdown.factsMovedUpABox} Naik Level',
                       xp: '+${result.xpBreakdown.factsMovedUpABox * 5} XP',
                     ),
                     if (result.xpBreakdown.sessionCompletedBonus > 0) ...[
                       const SizedBox(height: 8),
                       _buildXpRow(
                         context,
-                        label: 'Bonus Sesi Tuntas',
+                        label: 'Bonus Tuntas',
                         xp: '+${result.xpBreakdown.sessionCompletedBonus} XP',
                       ),
                     ],
@@ -281,7 +367,7 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
               ),
               const SizedBox(height: 28),
 
-              // Tiga Tombol Tindakan Bawah (Icon Saja): Beranda, Ulangi, Berikutnya
+              // Tiga Tombol Tindakan Bawah: Beranda, Ulangi, Lanjut
               Row(
                 children: [
                   // 1. Beranda
@@ -289,11 +375,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
                     child: ChunkyButton(
                       onPressed: () => context.go('/'),
                       backgroundColor: AppTheme.colorVanillaCard,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: const Icon(
-                        AppIcons.home,
-                        size: 26,
-                        color: AppTheme.colorEspresso,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            AppIcons.home,
+                            size: 20,
+                            color: AppTheme.colorEspresso,
+                          ),
+                          SizedBox(width: 6),
+                          Text('Home',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.colorEspresso)),
+                        ],
                       ),
                     ),
                   ),
@@ -305,11 +401,21 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
                       onPressed: () =>
                           context.go('/game/${result.levelReached}'),
                       backgroundColor: AppTheme.colorVanillaCard,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: const Icon(
-                        AppIcons.replay,
-                        size: 26,
-                        color: AppTheme.colorEspresso,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            AppIcons.replay,
+                            size: 20,
+                            color: AppTheme.colorEspresso,
+                          ),
+                          SizedBox(width: 6),
+                          Text('Ulangi',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.colorEspresso)),
+                        ],
                       ),
                     ),
                   ),
@@ -326,13 +432,25 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
                       backgroundColor: earnedStars >= 1
                           ? accentColor
                           : const Color(0xFFD5C4A1),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Icon(
-                        AppIcons.nextLevel,
-                        size: 26,
-                        color: earnedStars >= 1
-                            ? Colors.white
-                            : AppTheme.colorTaupe,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            AppIcons.nextLevel,
+                            size: 20,
+                            color: earnedStars >= 1
+                                ? Colors.white
+                                : AppTheme.colorTaupe,
+                          ),
+                          const SizedBox(width: 6),
+                          Text('Lanjut',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: earnedStars >= 1
+                                      ? Colors.white
+                                      : AppTheme.colorTaupe)),
+                        ],
                       ),
                     ),
                   ),
@@ -343,8 +461,41 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  ),
+
+  // 2. Kerudung putih pasca-whiteout: menahan putih lalu
+  // memudar perlahan (cross-dissolve) ke result screen.
+  // Selalu ter-mount saat selebrasi selesai agar fade 1→0 sempat jalan.
+  if (!_showCelebration)
+    Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: _veilOpacity,
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOut,
+          child: Container(color: Colors.white),
+        ),
+      ),
+    ),
+
+  // 3. Overlay Selebrasi Bintang Flip & Skor Siphon (Fase 0 - 3)
+  if (_showCelebration)
+    Positioned.fill(
+      child: CelebrationStarBurst(
+        earnedStars: earnedStars,
+        sessionScore: result.totalScore,
+        initialTotalScore: result.previousBestScore ?? 0,
+        zoneAccent: accentColor,
+        onComplete: _finishCelebration,
+        onSkip: _finishCelebration,
+      ),
+    ),
+],
+),
+),
+);
+}
 
   Widget _buildXpRow(
     BuildContext context, {

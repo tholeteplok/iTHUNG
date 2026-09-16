@@ -54,7 +54,7 @@ void main() {
   });
 
   group('ResultsScreen 3 Action Buttons Tests', () {
-    testWidgets('renders 3 icon buttons: Home, Replay, Next Level', (tester) async {
+    testWidgets('renders 3 labeled buttons: Home, Ulangi, Lanjut', (tester) async {
       final result = createDummyResult(accuracy: 0.8, level: 3);
 
       await tester.pumpWidget(
@@ -65,15 +65,18 @@ void main() {
         ),
       );
 
-      // Verify page title and star rating
-      expect(find.text('Sesi Selesai!'), findsOneWidget);
+      // Verify tiered game-tone title (80% = 2 stars) and star rating
+      expect(find.text('Level Tuntas!'), findsOneWidget);
       expect(find.byType(AnimatedStarRating), findsOneWidget);
 
-      // Verify 3 ChunkyButtons
+      // Verify 3 ChunkyButtons with labels
       expect(find.byType(ChunkyButton), findsNWidgets(3));
       expect(find.byIcon(AppIcons.home), findsOneWidget);
       expect(find.byIcon(AppIcons.replay), findsOneWidget);
       expect(find.byIcon(AppIcons.nextLevel), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('Ulangi'), findsOneWidget);
+      expect(find.text('Lanjut'), findsOneWidget);
 
       // Accuracy 80% gives 2 stars -> Next level button should be enabled
       final nextButton = tester.widget<ChunkyButton>(

@@ -40,6 +40,18 @@ class AppTheme {
   /// Permukaan kartu vanilla cream hangat untuk UI non-game.
   static const Color colorVanillaCard = Color(0xFFFFFDF7);
 
+  /// Kartu dalam cream untuk avatar / tab aktif ala referensi Tally.
+  static const Color colorInnerCream = Color(0xFFFFF4DE);
+
+  /// Tile dusty-rose untuk koleksi award.
+  static const Color colorTileRose = Color(0xFFF3E6D8);
+
+  /// Pil tab aktif cream gelap.
+  static const Color colorTabActive = Color(0xFFFDEDC8);
+
+  /// Emas kode teman / aksen kecil.
+  static const Color colorFriendCode = Color(0xFFB8932A);
+
   /// Latar belakang kanvas dasar hangat (warm oatmeal/sandy cream).
   static const Color colorSandyCanvas = Color(0xFFF4EBD0);
 

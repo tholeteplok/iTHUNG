@@ -34,8 +34,9 @@ class LeaderboardScreen extends ConsumerWidget {
       return LeaderboardLockedView(accountState: accountState);
     }
 
-    // Picu auto-sync hasil tantangan harian lokal/pending di latar belakang
+    // Picu auto-sync hasil tantangan harian & rekonsiliasi profil pemain di latar belakang
     ref.read(dailySyncServiceProvider).syncPendingSubmissions();
+    ref.read(accountStatusProvider.notifier).reconcileProfileWithCloud();
 
     // 2. Jika sudah terhubung, tampilkan Leaderboard dengan mode toggle
     final mode = ref.watch(leaderboardModeProvider);
@@ -159,6 +160,9 @@ class LeaderboardScreen extends ConsumerWidget {
                                     band: selectedBand
                                   )).future);
                                 case LeaderboardMode.allTime:
+                                  await ref
+                                      .read(accountStatusProvider.notifier)
+                                      .reconcileProfileWithCloud();
                                   ref.invalidate(allTimeEntriesProvider);
                                   await ref.read(allTimeEntriesProvider.future);
                               }
@@ -328,7 +332,7 @@ class LeaderboardLockedView extends ConsumerWidget {
                 ),
                 const Spacer(),
                 ChunkyCard(
-                  variant: ChunkyCardVariant.woodBoard,
+                  variant: ChunkyCardVariant.vanillaSoft,
                   padding: const EdgeInsets.fromLTRB(26, 40, 26, 28),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

@@ -168,7 +168,7 @@ class PublicProfileScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
+          variant: ChunkyCardVariant.vanillaSoft,
           padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -224,7 +224,7 @@ class PublicProfileScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: ChunkyCard(
-          variant: ChunkyCardVariant.woodBoard,
+          variant: ChunkyCardVariant.vanillaSoft,
           padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,

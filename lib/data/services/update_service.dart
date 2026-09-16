@@ -256,13 +256,47 @@ class UpdateService {
     }
   }
 
-  /// Memeriksa berapa byte file APK yang sudah tersimpan di cache lokal untuk versi tertentu
+  /// Mendapatkan referensi File APK pembaruan di penyimpanan persisten aplikasi (/updates/)
+  Future<File> getUpdateFile(String version) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final updateDir = Directory('${docsDir.path}/updates');
+    if (!await updateDir.exists()) {
+      await updateDir.create(recursive: true);
+    }
+    final sanitizedVer =
+        _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return File('${updateDir.path}/iTHUNG-$sanitizedVer.apk');
+  }
+
+  /// Membersihkan berkas APK versi lama di penyimpanan lokal
+  Future<void> cleanupOldApkFiles(String currentKeepVersion) async {
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final updateDir = Directory('${docsDir.path}/updates');
+      if (!await updateDir.exists()) return;
+
+      final sanitizedCurrent = _sanitizeVersion(currentKeepVersion)
+          .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final currentFileName = 'iTHUNG-$sanitizedCurrent.apk';
+
+      final entities = updateDir.listSync();
+      for (final entity in entities) {
+        if (entity is File && entity.path.endsWith('.apk')) {
+          final fileName = entity.uri.pathSegments.last;
+          if (fileName != currentFileName) {
+            try {
+              entity.deleteSync();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Memeriksa berapa byte file APK yang sudah tersimpan di penyimpanan persisten untuk versi tertentu
   Future<int> getDownloadedApkBytes(String version) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final sanitizedVer =
-          _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-      final saveFile = File('${tempDir.path}/iTHUNG-$sanitizedVer.apk');
+      final saveFile = await getUpdateFile(version);
       if (await saveFile.exists()) {
         return await saveFile.length();
       }
@@ -272,7 +306,22 @@ class UpdateService {
     }
   }
 
-  /// Mengunduh file APK langsung ke cache aplikasi dengan dukungan Resumable Download (HTTP Range)
+  /// Memeriksa apakah file APK untuk versi tertentu sudah selesai diunduh 100%
+  Future<bool> isApkFullyDownloaded(String version, int expectedBytes) async {
+    try {
+      final saveFile = await getUpdateFile(version);
+      if (!await saveFile.exists()) return false;
+      final len = await saveFile.length();
+      if (expectedBytes > 0) {
+        return len >= expectedBytes;
+      }
+      return len > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mengunduh file APK langsung ke penyimpanan persisten aplikasi dengan dukungan Resumable Download (HTTP Range)
   /// dan pemulihan otomatis (Auto-Retry) jika koneksi terputus.
   Future<File> downloadApk({
     required String downloadUrl,
@@ -281,17 +330,15 @@ class UpdateService {
         onProgress,
     int? expectedTotalBytes,
   }) async {
-    final tempDir = await getTemporaryDirectory();
-    final sanitizedVer =
-        _sanitizeVersion(version).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final saveFile = File('${tempDir.path}/iTHUNG-$sanitizedVer.apk');
+    await cleanupOldApkFiles(version);
+    final saveFile = await getUpdateFile(version);
 
     // Periksa file yang sudah ada sebelumnya untuk melanjutkan
     int existingBytes = 0;
     if (await saveFile.exists()) {
       final len = await saveFile.length();
       if (expectedTotalBytes != null && expectedTotalBytes > 0 && len >= expectedTotalBytes) {
-        // File sudah lengkap 100% di cache
+        // File sudah lengkap 100% di penyimpanan
         onProgress(1.0, len, expectedTotalBytes);
         return saveFile;
       }
@@ -470,6 +517,56 @@ class UpdateService {
         'installApk',
         {'filePath': filePath},
       );
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Memeriksa apakah signature sertifikat file APK yang diunduh cocok dengan aplikasi yang sedang berjalan
+  Future<bool> checkSignatureMatch(String filePath) async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>(
+        'checkSignatureMatch',
+        {'filePath': filePath},
+      );
+      return result ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Menyalin file APK ke folder Download publik Android agar tidak terhapus saat uninstall
+  Future<String?> exportToPublicDownloads(String filePath, String fileName) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final result = await _installerChannel.invokeMethod<String>(
+        'exportToPublicDownloads',
+        {'filePath': filePath, 'fileName': fileName},
+      );
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Membuka dialog sistem Android untuk mencopot (uninstall) aplikasi saat ini
+  Future<bool> promptUninstall() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>('promptUninstall');
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Membuka aplikasi Pengelola File / Download Manager sistem Android
+  Future<bool> openDownloadsFolder() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _installerChannel.invokeMethod<bool>('openDownloadsFolder');
       return result ?? false;
     } catch (_) {
       return false;
