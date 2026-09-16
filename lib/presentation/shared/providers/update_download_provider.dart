@@ -208,47 +208,29 @@ class UpdateDownloadController extends StateNotifier<UpdateDownloadState> {
     state = state.copyWith(hasAutoPrompted: false);
   }
 
-  /// Memeriksa kecocokan tanda tangan (signature), melakukan auto-export ke publik jika mismatch,
-  /// dan membuka dialog transisi atau langsung menjalankan installer.
+  /// Membuka file APK untuk instalasi paket native Android atau fallback jika gagal
   Future<InstallResult> triggerInstall() async {
     final path = state.downloadedFilePath;
     if (path == null) return InstallResult.failed;
     final file = File(path);
     if (!await file.exists()) return InstallResult.failed;
 
-    // 1. Periksa apakah signature cocok dengan aplikasi yang sedang berjalan
-    final isMatch = await _updateService.checkSignatureMatch(path);
-
-    if (!isMatch) {
-      // Terdeteksi perbedaan keystore!
-      final ver = state.info?.latestVersion ?? 'update';
-      final fileName = 'iTHUNG-v$ver.apk';
-      final publicPath =
-          await _updateService.exportToPublicDownloads(path, fileName);
-
-      state = state.copyWith(
-        isSignatureMismatch: true,
-        publicExportPath: publicPath,
-      );
-
-      return InstallResult.keystoreMismatch;
-    }
-
-    // Signature cocok (normal update), jalankan installer standar
+    // Jalankan installer native Android langsung
     final success = await _updateService.installApk(path);
-    if (!success) {
-      // Jika installer native gagal dibuka (misal izin instalasi belum aktif atau restriksi vendor),
-      // ekspor APK ke folder Download publik sebagai fallback cadangan
-      final ver = state.info?.latestVersion ?? 'update';
-      final fileName = 'iTHUNG-v$ver.apk';
-      final publicPath =
-          await _updateService.exportToPublicDownloads(path, fileName);
-      if (publicPath != null) {
-        state = state.copyWith(publicExportPath: publicPath);
-      }
-      return InstallResult.failed;
+    if (success) {
+      return InstallResult.success;
     }
-    return InstallResult.success;
+
+    // Jika installer native gagal dibuka (misal restriksi vendor/sistem),
+    // ekspor APK ke folder Download publik sebagai fallback cadangan
+    final ver = state.info?.latestVersion ?? 'update';
+    final fileName = 'iTHUNG-v$ver.apk';
+    final publicPath =
+        await _updateService.exportToPublicDownloads(path, fileName);
+    if (publicPath != null) {
+      state = state.copyWith(publicExportPath: publicPath);
+    }
+    return InstallResult.failed;
   }
 
   /// Membuka folder Download publik sistem Android

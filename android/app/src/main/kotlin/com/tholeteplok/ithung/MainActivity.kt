@@ -95,37 +95,24 @@ class MainActivity : FlutterActivity() {
                 return
             }
 
-            // 1. Cek izin Install Unknown Apps di Android 8.0+ (Oreo, API 26+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (!packageManager.canRequestPackageInstalls()) {
-                    Log.w(TAG, "Install permission not granted. Opening settings for package: $packageName")
-                    val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                        data = Uri.parse("package:$packageName")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    startActivity(settingsIntent)
-                    result.error(
-                        "PERMISSION_REQUIRED",
-                        "Izin instalasi aplikasi tidak dikenal diperlukan. Pengaturan telah dibuka.",
-                        null
-                    )
-                    return
-                }
-            }
-
-            // 2. Buat content URI melalui FileProvider
+            // Buat content URI melalui FileProvider
             val apkUri = FileProvider.getUriForFile(
                 applicationContext,
                 "${applicationContext.packageName}.fileprovider",
                 file
             )
 
-            // 3. Buat Intent ACTION_VIEW untuk PackageInstaller
+            // Buat Intent ACTION_VIEW untuk PackageInstaller native Android
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+            // Berikan izin baca eksplisit ke package installer resolver
+            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                grantUriPermission(resolveInfo.activityInfo.packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             startActivity(intent)
